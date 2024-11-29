@@ -131,3 +131,9 @@ resource "aws_cloudwatch_metric_alarm" "consecutive_failures" {
   alarm_description   = "Multiple consecutive message processing failures"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
+
+# Cloudwatch Log Group for Lambda
+resource "aws_cloudwatch_log_group" "lambda_logs" {
+  name              = "/aws/lambda/${aws_lambda_function.main.function_name}"
+  retention_in_days = 7
+}
