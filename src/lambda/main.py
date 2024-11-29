@@ -7,7 +7,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from aws_lambda_typing import Context
 from aws_lambda_typing.events import APIGatewayProxyEventV2
-from .trading.oanda import check_position_exists, close_long_position, close_short_position, create_long_market_order, create_short_market_order
+from .trading.oanda import check_position_exists, close_long_position, close_short_position, create_long_market_order, create_short_market_order, check_account_status
 
 # Use relative path navigation
 load_dotenv(Path(__file__).parents[2] / ".env")
@@ -54,86 +54,76 @@ async def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dic
             'body': json.dumps('ok')
         }
     
-    # Parse webhook
-    webhook_data = event['body']
-    
-    # Parse webhook data
-    signal_direction = webhook_data['signal']['direction']
-    symbol = webhook_data['market_data']['symbol']
-    exchange = webhook_data['market_data']['exchange']
-    
-    if exchange == 'OANDA':
-        # Usage example:
-        has_position = check_position_exists(
-        account_id=account,
-        instrument=symbol,
-        access_token=secret
+    # Check if the request is for the status endpoint
+    if path == '/oandastatus':
+        account_status = check_account_status(
+            account_id=account,
+            access_token=secret
         )
-        if has_position is True and signal_direction == 'LONG':
-            # Close the open short position
-            close_short_position(
-                account_id=account,
-                instrument=symbol,
-                access_token=secret
+        return {
+            'statusCode': 200,
+            'body': json.dumps(account_status)
+        }
+    
+    # Check if the request is for the webhook endpoint
+    if path == '/webhook':
+    
+        # Parse webhook
+        webhook_data = event['body']
+        
+        # Parse webhook data
+        signal_direction = webhook_data['signal']['direction']
+        symbol = webhook_data['market_data']['symbol']
+        exchange = webhook_data['market_data']['exchange']
+        
+        if exchange == 'OANDA':
+            # Usage example:
+            has_position = check_position_exists(
+            account_id=account,
+            instrument=symbol,
+            access_token=secret
             )
-            # Open a new long position
-            create_long_market_order(
-                account_id=account,
-                instrument=symbol,
-                access_token=secret
-            )
-        if has_position is True and signal_direction == 'SHORT':
-            # Close the open long position
-            close_long_position(
-                account_id=account,
-                instrument=symbol,
-                access_token=secret
-            )
-            # Open a new short position
-            create_short_market_order(
-                account_id=account,
-                instrument=symbol,
-                access_token=secret
-            )
-        if has_position is False and signal_direction == 'LONG':
-            # Open a new long position
-            create_long_market_order(
-                account_id=account,
-                instrument=symbol,
-                access_token=secret
-            )
-        if has_position is False and signal_direction == 'SHORT':
-            # Open a new short position
-            create_short_market_order(
-                account_id=account,
-                instrument=symbol,
-                access_token=secret
-            )
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Webhook processed successfully')
-    }
-
-#     {
-#     "action": "LONG_ENTRY",
-#     "indicator": "Trend_Validator",
-#     "signal": {
-#       "type": "ENTRY",
-#       "direction": "LONG",
-#       "trigger": "COLOR_CHANGE_BLUE"
-#     },
-#     "market_data": {
-#       "symbol": "USDCHF",
-#       "exchange": "OANDA",
-#       "timeframe": "10",
-#       "timestamp": "2024-11-28T21:20:00Z",
-#       "timenow": "2024-11-28T21:30:01Z"
-#     },
-#     "price_data": {
-#       "open": "0.88294",
-#       "high": "0.88298",
-#       "low": "0.8829",
-#       "close": "0.88298",
-#       "volume": "46"
-#     }
-#   }
+            if has_position is True and signal_direction == 'LONG':
+                # Close the open short position
+                close_short_position(
+                    account_id=account,
+                    instrument=symbol,
+                    access_token=secret
+                )
+                # Open a new long position
+                create_long_market_order(
+                    account_id=account,
+                    instrument=symbol,
+                    access_token=secret
+                )
+            if has_position is True and signal_direction == 'SHORT':
+                # Close the open long position
+                close_long_position(
+                    account_id=account,
+                    instrument=symbol,
+                    access_token=secret
+                )
+                # Open a new short position
+                create_short_market_order(
+                    account_id=account,
+                    instrument=symbol,
+                    access_token=secret
+                )
+            if has_position is False and signal_direction == 'LONG':
+                # Open a new long position
+                create_long_market_order(
+                    account_id=account,
+                    instrument=symbol,
+                    access_token=secret
+                )
+            if has_position is False and signal_direction == 'SHORT':
+                # Open a new short position
+                create_short_market_order(
+                    account_id=account,
+                    instrument=symbol,
+                    access_token=secret
+                )
+        return {
+            'statusCode': 200,
+            'body': json.dumps('Webhook processed successfully')
+        }

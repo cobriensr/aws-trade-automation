@@ -304,3 +304,50 @@ def create_short_market_order(
     if response.status_code == 404:
         raise LookupError("The Order or Account specified does not exist")
     raise RuntimeError(f"Unexpected error: {response.status_code} - {response.text}")
+
+def check_account_status(account_id: str, access_token: str) -> dict:
+    """
+    Check the status of an OANDA account
+
+    Args:
+        account_id (str): The OANDA account ID
+        access_token (str): The authentication token
+
+    Returns:
+        dict: JSON response from the API
+    """
+
+    # Set the headers for the API request
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}",
+    }
+
+    # Send the request to the OANDA API
+    response = requests.get(
+        f"{PRACTICE}/v3/accounts/{account_id}/summary",
+        headers=headers,
+        timeout=5,
+    )
+    
+    # Parse error message if present
+    error_message = response.json().get('errorMessage', '') if response.content else ''
+
+    # Check the response status code and raise an error if necessary
+    if response.status_code == 200:
+        data = response.json()
+        return {
+            "account_id": data["account"]["id"],
+            "balance": data["account"]["balance"],
+            "unrealized_pl": data["account"]["unrealizedPL"],
+            "realized_pl": data["account"]["pl"],
+            "margin_used": data["account"]["marginUsed"],
+            "margin_available": data["account"]["marginAvailable"],
+            "position_value": data["account"]["positionValue"],
+            "last_transaction": data["lastTransactionID"],
+        }
+    if response.status_code == 401:
+        raise OandaAuthError(f"Authentication failed: {error_message}")
+    if response.status_code == 404:
+        raise LookupError("The account specified does not exist")
+    raise RuntimeError(f"Unexpected error: {response.status_code} - {response.text}")
