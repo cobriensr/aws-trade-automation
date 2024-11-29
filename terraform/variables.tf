@@ -22,3 +22,15 @@ variable "alert_email" {
   type        = string
   default     = "jerseyse410@gmail.com"
 }
+
+variable "oanda_secret" {
+  description = "OANDA API secret"
+  type        = string
+  sensitive   = true
+}
+
+variable "oanda_account" {
+  description = "OANDA account ID"
+  type        = string
+  sensitive   = true
+}

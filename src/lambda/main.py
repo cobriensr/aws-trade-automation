@@ -2,18 +2,30 @@
 import os
 import json
 import logging
-from typing import Dict
+from typing import Dict, Tuple
 from pathlib import Path
+import boto3
 from dotenv import load_dotenv
 from aws_lambda_typing import Context
 from aws_lambda_typing.events import APIGatewayProxyEventV2
 from .trading.oanda import check_position_exists, close_long_position, close_short_position, create_long_market_order, create_short_market_order, check_account_status
 
-# Use relative path navigation
-load_dotenv(Path(__file__).parents[2] / ".env")
-
-secret = os.getenv("OANDA_SECRET")
-account = os.getenv("OANDA_ACCOUNT")
+def get_credentials() -> Tuple[str, str]:
+    """Get credentials from either Parameter Store or .env file"""
+    # First try to get from Parameter Store (production)
+    try:
+        ssm = boto3.client('ssm')
+        secret = ssm.get_parameter(Name='/tradovate/OANDA_SECRET', WithDecryption=True)['Parameter']['Value']
+        account = ssm.get_parameter(Name='/tradovate/OANDA_ACCOUNT', WithDecryption=True)['Parameter']['Value']
+        return secret, account
+    except Exception as exc:
+        # If Parameter Store fails, try local .env (development)
+        load_dotenv(Path(__file__).parents[2] / ".env")
+        secret = os.getenv("OANDA_SECRET")
+        account = os.getenv("OANDA_ACCOUNT")
+        if not secret or not account:
+            raise ValueError("Could not load credentials from Parameter Store or .env") from exc
+        return secret, account
 
 # Configure logger
 logger = logging.getLogger()
@@ -43,6 +55,9 @@ def configure_logger(context: Context) -> None:
 async def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     # Configure logging at the start of execution
     configure_logger(context)
+    
+    # Get credentials at the start of execution
+    secret, account = get_credentials()
     
     # Get the request path from the event
     path = event.get('path', '')

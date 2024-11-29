@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'src/lambda/**'  # Only trigger on Lambda code changes
+      - 'src/lambda/requirements.txt'  # Also trigger on requirements changes
 
 jobs:
   deploy:
@@ -20,8 +21,9 @@ jobs:
 
     - name: Install dependencies
       run: |
+        pip install -r requirements.txt --target ./src/lambda
         cd src/lambda
-        pip install -r requirements.txt -t .
+        rm -rf *.dist-info __pycache__
 
     - name: Create deployment package
       run: |
@@ -33,7 +35,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+        aws-region: us-east-2  # Changed to match your region
 
     - name: Update Lambda function
       run: |
