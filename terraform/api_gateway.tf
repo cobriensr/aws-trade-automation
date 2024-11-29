@@ -1,9 +1,9 @@
 
 # api_gateway.tf
 resource "aws_apigatewayv2_api" "main" {
-  name          = "${local.name_prefix}-api"
-  protocol_type = "HTTP"
-
+  name            = "${local.name_prefix}-api"
+  protocol_type   = "HTTP"
+  credentials_arn = aws_iam_role.api_gateway_role.arn
   cors_configuration {
     allow_origins = ["*"]
     allow_methods = ["POST"]
