@@ -1,9 +1,16 @@
 #api_gateway.tf
 
+resource "aws_lambda_permission" "api_gateway" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.main.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
+}
+
 resource "aws_apigatewayv2_api" "main" {
-  name            = "${local.name_prefix}-api"
-  protocol_type   = "HTTP"
-  credentials_arn = aws_iam_role.api_gateway_role.arn
+  name          = "${local.name_prefix}-api"
+  protocol_type = "HTTP"
 
   cors_configuration {
     allow_origins = ["*"]
