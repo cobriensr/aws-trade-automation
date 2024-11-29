@@ -8,16 +8,31 @@ This project implements an automated trading system that executes trades based o
 
 ### Core Components
 
-1. Trend Validator (10-minute timeframe)
+1. Trade Execution (1-minute timeframe)
+
+   - All entries and exits executed on 1-minute chart
+   - Provides precise entry and exit points
+   - Minimizes slippage on trade execution
+   - Ensures responsive position management
+
+2. Trend Validator (10-minute timeframe)
+
    - Primary trend direction indicator
    - Color changes trigger new trade entries
    - Blue indicates bullish trend
    - Red indicates bearish trend
 
-2. Directional Movement Index (15-minute timeframe)
+3. Directional Movement Index (15-minute timeframe)
+
    - Manages exits and re-entries
    - DI+ and DI- crossovers signal momentum shifts
    - Used to protect profits and re-enter continuing trends
+
+This multi-timeframe approach combines:
+
+- Quick execution (1-minute)
+- Trend direction (10-minute)
+- Momentum confirmation (15-minute)
 
 ### Strategy Logic
 
@@ -48,39 +63,19 @@ This project implements an automated trading system that executes trades based o
 2. Lambda Function
    - 1024MB memory for optimal performance
    - 15-second timeout for trade processing
-   - VPC-enabled for Redis access
    - Python 3.9 runtime
 
-3. ElastiCache Redis
-   - cache.t3.small instance type
-   - Single node deployment
-   - Used for state management
-   - 2GB memory for consistent performance
-
-4. Networking
+3. Networking
    - Custom VPC with public/private subnets
    - NAT Gateway for Lambda internet access
    - Security groups for access control
    - Route tables for traffic management
 
-### State Management
-
-1. Trading State Object:
-
-    ```python
-    {
-        "current_position": "NONE|LONG|SHORT",
-        "trend_color": "BLUE|RED",
-        "waiting_for_reentry": "YES|NO",
-        "last_updated": "timestamp"
-    }
-    ```
-
-2. State Transitions:
-   - New Trend Signal → Clear re-entry state
-   - Position Exit → Set waiting for re-entry
-   - Re-entry → Clear waiting state
-   - New Trade → Update position and trend color
+4. Parameter Store
+   - Secure storage for authentication tokens
+   - Manages Tradovate API credentials
+   - Handles token refresh lifecycle
+   - Encrypted storage for sensitive data
 
 ### Alert Processing Flow
 
@@ -89,68 +84,29 @@ This project implements an automated trading system that executes trades based o
    - Payload forwarded to Lambda
    - Initial validation performed
 
-2. State Management:
-   - Current state retrieved from Redis
-   - State validation performed
-   - State updates atomic through Redis
-
-3. Trade Execution:
+2. Trade Execution:
    - Tradovate API called for order placement
    - Order confirmation received
    - State updated based on execution
 
 ## Implementation Details
 
-### Lambda Function
-
-```python
-async def process_webhook(event, context):
-    # Parse webhook data
-    webhook_data = parse_webhook_data(event)
-    
-    # Get current state
-    trading_state = await get_trading_state()
-    
-    # Process based on alert type
-    if webhook_data['type'] == 'trend_validator':
-        await handle_trend_validator_alert(webhook_data, trading_state)
-    elif webhook_data['type'] == 'di_cross':
-        await handle_di_cross_alert(webhook_data, trading_state)
-        
-    # Execute trades if needed
-    if trading_state['trade_pending']:
-        await execute_trade(trading_state)
-```
-
-### State Management Functions
-
-```python
-async def handle_trend_validator_alert(data, state):
-    # Clear any re-entry wait state
-    state['waiting_for_reentry'] = 'NO'
-    
-    # Handle existing position
-    if state['current_position'] != 'NONE':
-        await close_position(state)
-    
-    # Enter new position
-    state['trend_color'] = data['color']
-    await enter_position(data['color'])
-    
-async def handle_di_cross_alert(data, state):
-    if state['current_position'] != 'NONE':
-        if is_valid_exit(data, state):
-            await close_position(state)
-            state['waiting_for_reentry'] = 'YES'
-    elif state['waiting_for_reentry'] == 'YES':
-        if is_valid_reentry(data, state):
-            await enter_position(state['trend_color'])
-            state['waiting_for_reentry'] = 'NO'
-```
-
 ## Trading View Alerts Setup
 
 ### Trend Validator Alert
+
+The system routes trades to different brokers based on both the instrument type and exchange:
+
+Broker Routing Rules:
+
+OANDA: All Forex pairs (e.g., EUR_USD, GBP_JPY) with exchange = OANDA
+Tradovate: All Futures contracts with their respective exchanges:
+
+- CME: ES (S&P 500), NQ (Nasdaq), RTY (Russell)
+- CBOT: YM (Dow)
+- NYMEX: CL (Crude Oil), GC (Gold)
+
+The webhook payload structure remains the same for both instrument types, with the routing logic handled by the Lambda function based on the symbol:
 
 1. Long Entry
 
@@ -210,13 +166,30 @@ async def handle_di_cross_alert(data, state):
 
 ## Infrastructure Deployment
 
-### Prerequisites
+### Prerequisite Steps
 
 - AWS Account
 - Terraform installed
 - AWS CLI configured
 - TradingView Pro account
 - Tradovate account
+- Required IAM Permissions
+  - Parameter Store access:
+
+  ```json
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "ssm:GetParameter",
+          "ssm:PutParameter"
+        ],
+        "Resource": "arn:aws:ssm:${region}:${account}:parameter/tradovate/*"
+      }
+    ]
+  }
 
 ### Deployment Steps
 
@@ -273,7 +246,6 @@ async def handle_di_cross_alert(data, state):
    - TradingView webhook delay (~100ms)
    - API Gateway processing (~10ms)
    - Lambda execution (~50-100ms)
-   - Redis operations (~1ms)
    - Tradovate API (~50-100ms)
 
 2. Optimizations:
@@ -286,11 +258,30 @@ async def handle_di_cross_alert(data, state):
 
 Approximate monthly costs:
 
-- Lambda: $5-10
-- Redis: $25
-- NAT Gateway: $32
-- API Gateway: $3.50-7
-- Total: $65-75
+1. AWS Service Costs:
+   - Lambda: $5-10 (based on ~100k invocations)
+   - NAT Gateway: $32 (single AZ)
+   - API Gateway: $3.50-7 (based on ~100k requests)
+   - Parameter Store: Free for standard parameters
+   - CloudWatch Logs: $1-2
+   - Total AWS Costs: $41.50-51.00
+
+2. External Service Costs:
+   - TradingView Pro: $15-30/month
+   - OANDA Account: Free (commission per trade)
+   - Tradovate Account: $99/month (includes data feed)
+   - Tradovate API Access: $25/month
+   - Total External Costs: $139-154/month
+
+Total Estimated Monthly Operating Costs: $181.50-204.00/month
+
+Notes:
+
+- Costs may vary based on trading volume
+- Parameter Store standard tier is free for first 10,000 parameters
+- CloudWatch costs depend on log retention and volume
+- External service costs may vary based on subscription level
+- Tradovate account costs can increase or decrease based on tier or lifetime plan
 
 ## Security
 
@@ -307,6 +298,10 @@ Approximate monthly costs:
 - Encrypted state storage
 - Secure API endpoints
 - Limited permissions
+- Parameter Store for secure credential storage
+  - Automatic encryption of sensitive values
+  - Token lifecycle management
+  - Access controlled via IAM
 
 ### Access Control
 
@@ -328,4 +323,148 @@ Approximate monthly costs:
    - Enhanced monitoring
    - Automated testing
    - Performance optimization
-  
+
+## Local Development and Testing
+
+### Prerequisites
+
+1. Install AWS SAM CLI:
+
+   ```bash
+   brew tap aws/tap
+   brew install aws-sam-cli
+   ```
+
+2. Install ngrok for webhook forwarding:
+
+    ```bash
+    brew install ngrok
+   ```
+
+3. Configure AWS credentials with Parameter Store access:
+
+   ```bash
+   aws configure
+   # Ensure your credentials have ssm:GetParameter and ssm:PutParameter permissions
+   ```
+
+### Local Testing Setup
+
+1. Create a `template.yaml` in project root
+
+    ```yaml
+    AWSTemplateFormatVersion: '2010-09-09'
+    Transform: AWS::Serverless-2016-10-31
+    Description: Lambda function for trading automation
+
+    Resources:
+    TradingFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+        CodeUri: ./src/lambda/trading
+        Handler: tradovate_token.lambda_handler
+        Runtime: python3.9
+        Timeout: 30
+        MemorySize: 128
+        Events:
+            WebhookAPI:
+            Type: Api
+            Properties:
+                Path: /webhook
+                Method: POST
+        LoggingConfig:
+            LogFormat: JSON
+            LogGroup: "/aws/lambda/trading-function"
+            RetentionInDays: 30
+    ```
+
+2. Start local API endpoint
+
+    ```bash
+    sam local start-api
+    ```
+
+3. In a separate terminal, start ngrok
+
+    ```bash
+    ngrok http 3000
+    ```
+
+4. Configure webhook forwarding:
+
+   - Copy the ngrok URL (e.g., <https://abc123.ngrok.io/webhook>)
+   - Go to webhook.site
+   - Set up forwarding rules to your ngrok URL
+
+### Testing Workflow
+
+1. Send test webhook from TradingView:
+
+    ```javascript
+        {
+        "action": "LONG_ENTRY",
+        "indicator": "Trend_Validator",
+        "signal": {
+            "type": "ENTRY",
+            "direction": "LONG",
+            "trigger": "COLOR_CHANGE_BLUE"
+        }
+    }
+    ```
+
+2. Monitor local logs:
+
+   - SAM CLI will show Lambda execution logs
+   - webhook.site shows incoming webhook data
+   - ngrok interface shows request/response details
+
+3. Debug locally:
+
+   - Full access to local Lambda environment
+   - Real-time log viewing
+   - Quick iteration on code changes
+
+### Common Issues
+
+1. Parameter Store Local Testing:
+   - Use environment variables for local testing:
+
+     ```bash
+     export TRADOVATE_USERNAME=your_username
+     export TRADOVATE_PASSWORD=your_password
+     export TRADOVATE_APP_ID=your_app_id
+     ```
+
+   - Mock Parameter Store responses when needed:
+
+     ```python
+     class MockParameterStore:
+         def __init__(self):
+             self.parameters = {}
+         
+         def put_parameter(self, Name, Value, Type, Overwrite=False):
+             self.parameters[Name] = Value
+             
+         def get_parameter(self, Name, WithDecryption=False):
+             return {
+                 'Parameter': {
+                     'Value': self.parameters.get(Name, '')
+                 }
+             }
+     ```
+
+   - Parameters used in production:
+     - `/tradovate/token`: Current authentication token
+     - `/tradovate/token_expiry`: Token expiration timestamp
+
+2. Connectivity:
+
+    - Ensure ngrok is running and URL is current
+    - Check webhook.site forwarding rules
+    - Verify local API is running on port 3000
+
+3. Permissions:
+
+    - Local execution uses your AWS credentials
+    - Ensure proper IAM permissions
+    - Test with appropriate role assumptions
