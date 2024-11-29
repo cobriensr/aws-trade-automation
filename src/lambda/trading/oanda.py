@@ -1,17 +1,9 @@
 """OANDA Utility Functions"""
-import os
-from pathlib import Path
-from dotenv import load_dotenv
 import requests
 
-# Use relative path navigation
-load_dotenv(Path(__file__).parents[3] / ".env")
-
 # Set global variables
-secret = os.getenv("OANDA_SECRET")
 PRACTICE = "https://api-fxpractice.oanda.com"
 LIVE = "https://api-fxtrade.oanda.com"
-account = os.getenv("OANDA_ACCOUNT")
 
 FOREX_UNITS = {
     "STANDARD_LOT": 100000,  # Standard lot is 100,000 units
