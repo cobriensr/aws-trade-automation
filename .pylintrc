@@ -2,6 +2,7 @@
 disable=
     W0718,  # broad-exception-caught
     W0719,  # broad-exception-raised
+    W1203,  # logging-fstring-interpolation
     C0301,  # line-too-long
     C0303,  # trailing-whitespace
     C0305,  # trailing-newlines
