@@ -201,3 +201,66 @@ lambda_function.zip
 .vscode/
 *.swp
 *.swo
+
+# Specific files
+src/lambda/six.py
+src/lambda/LICENSE
+src/lambda/**/six.py
+src/lambda/**/LICENSE
+
+# Python dependencies
+src/lambda/LICENSE
+src/lambda/attr/
+src/lambda/bin/
+src/lambda/dateutil
+src/lambda/aiohttp/
+src/lambda/asyncio/
+src/lambda/boto3/
+src/lambda/botocore/
+src/lambda/certifi/
+src/lambda/charset_normalizer/
+src/lambda/idna/
+src/lambda/jmespath/
+src/lambda/requests/
+src/lambda/urllib3/
+src/lambda/aiohappyeyeballs/
+src/lambda/aiosignal/
+src/lambda/attrs/
+src/lambda/aws_lambda_typing/
+src/lambda/frozenlist/
+src/lambda/multidict/
+src/lambda/propcache/
+src/lambda/python_dateutil/
+src/lambda/s3transfer/
+src/lambda/six.py
+src/lambda/yarl/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.Python
+*.so
+
+# Lambda deployment
+lambda_function.zip
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Python dist-info directories
+src/lambda/*.dist-info/
+src/lambda/**/*.dist-info/
+
+# Python egg-info
+src/lambda/*.egg-info/
+src/lambda/**/*.egg-info/
+
+# To be even more thorough, you can add:
+src/lambda/*.whl
+src/lambda/**/*.whl
