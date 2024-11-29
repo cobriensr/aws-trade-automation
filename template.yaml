@@ -1,0 +1,24 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Lambda function for trading automation
+
+Resources:
+  TradingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./src/lambda/trading
+      Handler: tradovate_token.lambda_handler
+      Runtime: python3.9
+      Timeout: 30
+      MemorySize: 128
+      Events:
+        WebhookAPI:
+          Type: Api
+          Properties:
+            Path: /webhook
+            Method: POST
+      # Simplified logging config
+      LoggingConfig:
+        LogFormat: JSON
+        LogGroup: "/aws/lambda/trading-function"
+        RetentionInDays: 30
