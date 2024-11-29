@@ -37,7 +37,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "ec2:CreateNetworkInterface",
           "ec2:DescribeNetworkInterfaces",
           "ec2:DeleteNetworkInterface",
-          "secretsmanager:GetSecretValue"
+          "secretsmanager:GetSecretValue",
+          "lambda:InvokeFunction"
         ]
         Resource = "*"
       }
