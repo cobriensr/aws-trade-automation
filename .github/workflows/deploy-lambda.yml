@@ -16,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
-        python-version: '3.9'
+        python-version: '3.12'
 
     - name: Install dependencies
       run: |
@@ -26,7 +26,7 @@ jobs:
     - name: Create deployment package
       run: |
         cd src/lambda
-        zip -r ../../lambda_function.zip ./*
+        zip -r ../../terraform/lambda_function.zip ./*
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
