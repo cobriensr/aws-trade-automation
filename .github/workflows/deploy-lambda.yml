@@ -39,4 +39,4 @@ jobs:
       run: |
         aws lambda update-function-code \
           --function-name trading-prod-function \
-          --zip-file fileb://lambda_function.zip
+          --zip-file fileb://terraform/lambda_function.zip
