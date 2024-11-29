@@ -1,0 +1,23 @@
+{
+    "action": "LONG_ENTRY",
+    "indicator": "Trend_Validator",
+    "signal": {
+      "type": "ENTRY",
+      "direction": "LONG",
+      "trigger": "COLOR_CHANGE_BLUE"
+    },
+    "market_data": {
+      "symbol": "USDCHF",
+      "exchange": "OANDA",
+      "timeframe": "10",
+      "timestamp": "2024-11-28T21:20:00Z",
+      "timenow": "2024-11-28T21:30:01Z"
+    },
+    "price_data": {
+      "open": "0.88294",
+      "high": "0.88298",
+      "low": "0.8829",
+      "close": "0.88298",
+      "volume": "46"
+    }
+  }

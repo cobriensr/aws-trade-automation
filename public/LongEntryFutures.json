@@ -1,0 +1,23 @@
+{
+    "action": "LONG_ENTRY",
+    "indicator": "Trend_Validator",
+    "signal": {
+      "type": "ENTRY",
+      "direction": "LONG",
+      "trigger": "COLOR_CHANGE_BLUE"
+    },
+    "market_data": {
+      "symbol": "GC1!",
+      "exchange": "COMEX",
+      "timeframe": "10",
+      "timestamp": "2024-11-28T17:40:00Z",
+      "timenow": "2024-11-28T17:50:02Z"
+    },
+    "price_data": {
+      "open": "2665.5",
+      "high": "2666.2",
+      "low": "2665.2",
+      "close": "2665.7",
+      "volume": "168"
+    }
+  }

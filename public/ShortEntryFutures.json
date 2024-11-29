@@ -1,0 +1,23 @@
+{
+    "action": "SHORT_ENTRY",
+    "indicator": "Trend_Validator",
+    "signal": {
+      "type": "ENTRY",
+      "direction": "SHORT",
+      "trigger": "COLOR_CHANGE_RED"
+    },
+    "market_data": {
+      "symbol": "CL1!",
+      "exchange": "NYMEX",
+      "timeframe": "10",
+      "timestamp": "2024-11-28T23:30:00Z",
+      "timenow": "2024-11-28T23:40:07Z"
+    },
+    "price_data": {
+      "open": "68.86",
+      "high": "68.86",
+      "low": "68.81",
+      "close": "68.81",
+      "volume": "70"
+    }
+  }
