@@ -52,3 +52,18 @@ resource "aws_apigatewayv2_route" "main" {
   route_key = "POST /webhook"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
+
+# Healthcheck endpoint configuration
+resource "aws_apigatewayv2_route" "healthcheck" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "GET /healthcheck"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_integration" "healthcheck" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = "AWS_PROXY"
+  integration_method     = "POST"
+  integration_uri        = aws_lambda_function.main.invoke_arn
+  payload_format_version = "2.0"
+}

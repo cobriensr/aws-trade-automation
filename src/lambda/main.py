@@ -1,6 +1,8 @@
 """Main Lambda function."""
 import os
+import json
 import logging
+from typing import Dict
 from pathlib import Path
 from dotenv import load_dotenv
 from aws_lambda_typing import Context
@@ -38,9 +40,19 @@ def configure_logger(context: Context) -> None:
     logger.info(f"Log Group: {context.log_group_name}")
     logger.info(f"Log Stream: {context.log_stream_name}")
 
-async def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> None:
+async def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     # Configure logging at the start of execution
     configure_logger(context)
+    
+    # Get the request path from the event
+    path = event.get('path', '')
+
+    # Check if the request is for the healthcheck endpoint
+    if path == '/healthcheck':
+        return {
+            'statusCode': 200,
+            'body': json.dumps('ok')
+        }
     
     # Parse webhook
     webhook_data = event['body']
@@ -97,6 +109,10 @@ async def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Non
                 instrument=symbol,
                 access_token=secret
             )
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Webhook processed successfully')
+    }
 
 #     {
 #     "action": "LONG_ENTRY",
