@@ -36,7 +36,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-2  # Changed to match your region
+        aws-region: us-east-1  # Changed to match your region
 
     - name: Update Lambda function
       run: |
