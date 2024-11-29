@@ -4,16 +4,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 import requests
 
-# Practice 	https://api-fxpractice.oanda.com
-# Live 	{PRACTICE}
-
 # Use relative path navigation
 load_dotenv(Path(__file__).parents[3] / ".env")
 
 # Set global variables
 secret = os.getenv("OANDA_SECRET")
 PRACTICE = "https://api-fxpractice.oanda.com"
-LIVE = "{PRACTICE}"
+LIVE = "https://api-fxtrade.oanda.com"
 account = os.getenv("OANDA_ACCOUNT")
 
 FOREX_UNITS = {
@@ -41,6 +38,52 @@ SYMBOL_MAP = {
 
 class OandaAuthError(Exception):
     """Raised when there are authorization issues with OANDA API"""
+
+def check_position_exists(account_id: str, instrument: str, access_token: str) -> bool:
+    """
+    Check if a position exists for a given instrument
+    
+    Args:
+        account_id (str): The OANDA account ID
+        instrument (str): The instrument to check (e.g. "EURUSD")
+        access_token (str): The authentication token
+        
+    Returns:
+        bool: True if position exists, False otherwise
+    """
+    
+    # Set the headers for the API request
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    # Send the request to the OANDA API
+    response = requests.get(
+        f'{PRACTICE}/v3/accounts/{account_id}/openPositions',
+        headers=headers,
+        timeout=5
+    )
+    
+    # Parse error message if present
+    error_message = response.json().get('errorMessage', '') if response.content else ''
+    
+    # Check the response status code and raise an error if necessary
+    if response.status_code == 401:
+        raise OandaAuthError(f"Authentication failed: {error_message}")
+    
+    # Convert response to JSON
+    positions = response.json()
+    
+    # Format the instrument to OANDA format (adding underscore)
+    oanda_instrument = f"{instrument[:3]}_{instrument[3:]}"
+    
+    # Check if instrument exists in any position
+    for position in positions.get('positions', []):
+        if position['instrument'] == oanda_instrument:
+            return True
+    # If no position found, return False
+    return False
 
 def close_long_position(account_id: str, instrument: str, access_token: str) -> dict:
     """
