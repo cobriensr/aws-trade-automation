@@ -1,9 +1,10 @@
+#api_gateway.tf
 
-# api_gateway.tf
 resource "aws_apigatewayv2_api" "main" {
   name            = "${local.name_prefix}-api"
   protocol_type   = "HTTP"
   credentials_arn = aws_iam_role.api_gateway_role.arn
+
   cors_configuration {
     allow_origins = ["*"]
     allow_methods = ["POST"]
@@ -57,7 +58,7 @@ resource "aws_apigatewayv2_route" "main" {
 resource "aws_apigatewayv2_route" "healthcheck" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "GET /healthcheck"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.healthcheck.id}"
 }
 
 resource "aws_apigatewayv2_integration" "healthcheck" {
@@ -72,7 +73,7 @@ resource "aws_apigatewayv2_integration" "healthcheck" {
 resource "aws_apigatewayv2_route" "oandastatus" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "GET /oandastatus"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.oandastatus.id}"
 }
 
 resource "aws_apigatewayv2_integration" "oandastatus" {
