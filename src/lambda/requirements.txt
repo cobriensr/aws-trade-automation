@@ -2,3 +2,4 @@ aiohttp
 asyncio
 requests
 boto3
+aws-lambda-typing
