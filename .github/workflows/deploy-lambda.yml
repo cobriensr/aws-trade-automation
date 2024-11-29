@@ -5,7 +5,8 @@ on:
     branches: [ main ]
     paths:
       - 'src/lambda/**'  # Only trigger on Lambda code changes
-      - 'src/lambda/requirements.txt'  # Also trigger on requirements changes
+      - 'requirements.txt'  # Also trigger on requirements changes
+      - 'src/lambda/requirements.txt'  # Also trigger on requirements changes (duplicated)
 
 jobs:
   deploy:
