@@ -4,8 +4,8 @@ resource "aws_lambda_function" "main" {
   function_name = "${local.name_prefix}-function"
   role          = aws_iam_role.lambda_role.arn
   handler       = "main.lambda_handler"
-  runtime       = "python3.9"
-  timeout       = 15
+  runtime       = "python3.12"
+  timeout       = 30
   memory_size   = 1024
 
   environment {
@@ -15,7 +15,7 @@ resource "aws_lambda_function" "main" {
   }
 
   vpc_config {
-    subnet_ids         = [aws_subnet.private.id]
+    subnet_ids         = values(aws_subnet.private)[*].id
     security_group_ids = [aws_security_group.lambda.id]
   }
 

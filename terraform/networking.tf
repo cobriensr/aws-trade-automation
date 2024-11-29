@@ -9,24 +9,36 @@ resource "aws_vpc" "main" {
   })
 }
 
+# Create multiple public subnets
 resource "aws_subnet" "public" {
+  for_each = {
+    a = "us-east-1a"
+    b = "us-east-1b"
+  }
+
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.0.0/24"
-  availability_zone       = "${var.aws_region}a"
+  cidr_block              = each.key == "a" ? "10.0.0.0/24" : "10.0.3.0/24"
+  availability_zone       = each.value
   map_public_ip_on_launch = true
 
   tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-public-subnet"
+    Name = "trading-${var.environment}-public-subnet-${each.key}"
   })
 }
 
+# Create multiple private subnets
 resource "aws_subnet" "private" {
+  for_each = {
+    a = "us-east-1a"
+    b = "us-east-1b"
+  }
+
   vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.1.0/24"
-  availability_zone = "${var.aws_region}a"
+  cidr_block        = each.key == "a" ? "10.0.1.0/24" : "10.0.2.0/24"
+  availability_zone = each.value
 
   tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-private-subnet"
+    Name = "trading-${var.environment}-private-subnet-${each.key}"
   })
 }
 
@@ -48,9 +60,9 @@ resource "aws_eip" "nat" {
 
 resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public.id
+  subnet_id     = aws_subnet.public["a"].id # Use the first public subnet
 
   tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-nat"
+    Name = "trading-${var.environment}-nat"
   })
 }
