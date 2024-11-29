@@ -68,26 +68,6 @@ resource "aws_cloudwatch_metric_alarm" "api_5xx_errors" {
   tags = local.common_tags
 }
 
-# Redis Connection Errors
-resource "aws_cloudwatch_metric_alarm" "redis_connection_errors" {
-  alarm_name          = "${local.name_prefix}-redis-connection"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "1"
-  metric_name         = "CurrConnections"
-  namespace           = "AWS/ElastiCache"
-  period              = "60"
-  statistic           = "SampleCount"
-  threshold           = "0"
-  alarm_description   = "Redis has no active connections"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-
-  dimensions = {
-    CacheClusterId = aws_elasticache_cluster.main.id
-  }
-
-  tags = local.common_tags
-}
-
 # SNS Topic for Alerts
 resource "aws_sns_topic" "alerts" {
   name = "${local.name_prefix}-alerts"
@@ -135,24 +115,6 @@ resource "aws_cloudwatch_metric_alarm" "lambda_memory" {
 
   dimensions = {
     FunctionName = aws_lambda_function.main.function_name
-  }
-}
-
-# Redis CPU Usage
-resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
-  alarm_name          = "${local.name_prefix}-redis-cpu"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "3"
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/ElastiCache"
-  period              = "300"
-  statistic           = "Average"
-  threshold           = "80"
-  alarm_description   = "Redis CPU utilization too high"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-
-  dimensions = {
-    CacheClusterId = aws_elasticache_cluster.main.id
   }
 }
 

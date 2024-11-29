@@ -10,8 +10,6 @@ resource "aws_lambda_function" "main" {
 
   environment {
     variables = {
-      REDIS_HOST    = aws_elasticache_cluster.main.cache_nodes[0].address
-      REDIS_PORT    = aws_elasticache_cluster.main.cache_nodes[0].port
       FUNCTION_NAME = "${local.name_prefix}-function"
     }
   }
