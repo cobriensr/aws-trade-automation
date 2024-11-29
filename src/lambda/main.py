@@ -6,7 +6,7 @@ from typing import Dict, Tuple
 from pathlib import Path
 import boto3
 from dotenv import load_dotenv
-from aws_lambda_typing import Context
+from aws_lambda_typing.context import Context
 from aws_lambda_typing.events import APIGatewayProxyEventV2
 from .trading.oanda import check_position_exists, close_long_position, close_short_position, create_long_market_order, create_short_market_order, check_account_status
 
