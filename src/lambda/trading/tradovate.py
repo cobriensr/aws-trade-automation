@@ -1,4 +1,5 @@
 """Tradovate Utility Functions"""
+
 import os
 from pathlib import Path
 from typing import Tuple, Callable, Any, Optional
@@ -6,6 +7,7 @@ from datetime import datetime
 import time
 from dotenv import load_dotenv
 import requests
+
 # from .tradovate_token import TokenManager
 
 # live.tradovateapi.com for Live only functionality.
@@ -24,6 +26,7 @@ password = os.getenv("TRADOVATE_PASSWORD")
 device_id = os.getenv("TRADOVATE_DEVICE_ID")
 cid = os.getenv("TRADOVATE_CID")
 secret = os.getenv("TRADOVATE_SECRET")
+
 
 def retry_with_ticket(api_call: Callable) -> Any:
     """
@@ -111,6 +114,7 @@ def get_accounts(access_token: str) -> dict:
     response = requests.get(f"{LIVE}/account/list", headers=headers, timeout=5)
 
     return response.json()
+
 
 # TODO - Move this into the lambda handler function
 def main():

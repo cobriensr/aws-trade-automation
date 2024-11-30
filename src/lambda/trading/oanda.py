@@ -1,4 +1,5 @@
 """OANDA Utility Functions"""
+
 import requests
 
 # Set global variables
@@ -28,54 +29,55 @@ SYMBOL_MAP = {
     "AUDUSD": "AUD_USD",
 }
 
+
 class OandaAuthError(Exception):
     """Raised when there are authorization issues with OANDA API"""
+
 
 def check_position_exists(account_id: str, instrument: str, access_token: str) -> bool:
     """
     Check if a position exists for a given instrument
-    
+
     Args:
         account_id (str): The OANDA account ID
         instrument (str): The instrument to check (e.g. "EURUSD")
         access_token (str): The authentication token
-        
+
     Returns:
         bool: True if position exists, False otherwise
     """
-    
+
     # Set the headers for the API request
     headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {access_token}'
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}",
     }
 
     # Send the request to the OANDA API
     response = requests.get(
-        f'{PRACTICE}/v3/accounts/{account_id}/openPositions',
-        headers=headers,
-        timeout=5
+        f"{PRACTICE}/v3/accounts/{account_id}/openPositions", headers=headers, timeout=5
     )
-    
+
     # Parse error message if present
-    error_message = response.json().get('errorMessage', '') if response.content else ''
-    
+    error_message = response.json().get("errorMessage", "") if response.content else ""
+
     # Check the response status code and raise an error if necessary
     if response.status_code == 401:
         raise OandaAuthError(f"Authentication failed: {error_message}")
-    
+
     # Convert response to JSON
     positions = response.json()
-    
+
     # Format the instrument to OANDA format (adding underscore)
     oanda_instrument = f"{instrument[:3]}_{instrument[3:]}"
-    
+
     # Check if instrument exists in any position
-    for position in positions.get('positions', []):
-        if position['instrument'] == oanda_instrument:
+    for position in positions.get("positions", []):
+        if position["instrument"] == oanda_instrument:
             return True
     # If no position found, return False
     return False
+
 
 def close_long_position(account_id: str, instrument: str, access_token: str) -> dict:
     """
@@ -109,9 +111,9 @@ def close_long_position(account_id: str, instrument: str, access_token: str) -> 
         json=body,
         timeout=5,
     )
-    
+
     # Parse error message if present
-    error_message = response.json().get('errorMessage', '') if response.content else ''
+    error_message = response.json().get("errorMessage", "") if response.content else ""
 
     # Check the response status code and raise an error if necessary
     if response.status_code == 200:
@@ -156,9 +158,9 @@ def close_short_position(account_id: str, instrument: str, access_token: str) ->
         json=body,
         timeout=5,
     )
-    
+
     # Parse error message if present
-    error_message = response.json().get('errorMessage', '') if response.content else ''
+    error_message = response.json().get("errorMessage", "") if response.content else ""
 
     # Check the response status code and raise an error if necessary
     if response.status_code == 200:
@@ -215,9 +217,9 @@ def create_long_market_order(
         json=body,
         timeout=5,
     )
-    
+
     # Parse error message if present
-    error_message = response.json().get('errorMessage', '') if response.content else ''
+    error_message = response.json().get("errorMessage", "") if response.content else ""
 
     # Check the response status code and raise an error if necessary
     if response.status_code == 201:
@@ -278,9 +280,9 @@ def create_short_market_order(
         json=body,
         timeout=5,
     )
-    
+
     # Parse error message if present
-    error_message = response.json().get('errorMessage', '') if response.content else ''
+    error_message = response.json().get("errorMessage", "") if response.content else ""
 
     # Check the response status code and raise an error if necessary
     if response.status_code == 201:
@@ -296,6 +298,7 @@ def create_short_market_order(
     if response.status_code == 404:
         raise LookupError("The Order or Account specified does not exist")
     raise RuntimeError(f"Unexpected error: {response.status_code} - {response.text}")
+
 
 def check_account_status(account_id: str, access_token: str) -> dict:
     """
@@ -321,9 +324,9 @@ def check_account_status(account_id: str, access_token: str) -> dict:
         headers=headers,
         timeout=5,
     )
-    
+
     # Parse error message if present
-    error_message = response.json().get('errorMessage', '') if response.content else ''
+    error_message = response.json().get("errorMessage", "") if response.content else ""
 
     # Check the response status code and raise an error if necessary
     if response.status_code == 200:
