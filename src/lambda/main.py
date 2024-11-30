@@ -73,6 +73,9 @@ def configure_logger(context: Context) -> None:
 def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     # Configure logging at the start of execution
     configure_logger(context)
+    
+    # Log the entire event for debugging
+    logger.debug(f"Full event: {json.dumps(event, indent=2)}")
 
     # Get credentials at the start of execution
     secret, account = get_credentials()
