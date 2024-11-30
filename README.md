@@ -41,12 +41,12 @@ This multi-timeframe approach combines:
    - Short Entry: Trend Validator turns Red from Blue
    - Entry execution is immediate upon color change
 
-2. Exit Conditions:
+2. Exit Conditions: (Not Yet Implemented)
    - Long Exit: DI- crosses above DI+
    - Short Exit: DI+ crosses above DI-
    - Exits protect profits when momentum shifts
 
-3. Re-entry Conditions:
+3. Re-entry Conditions: (Not Yet Implemented)
    - Re-enter Long: DI+ crosses above DI- while Trend Validator is still Blue
    - Re-enter Short: DI- crosses above DI+ while Trend Validator is still Red
    - Allows catching continuation moves in strong trends
@@ -63,7 +63,7 @@ This multi-timeframe approach combines:
 2. Lambda Function
    - 1024MB memory for optimal performance
    - 15-second timeout for trade processing
-   - Python 3.9 runtime
+   - Python 3.12 runtime
 
 3. Networking
    - Custom VPC with public/private subnets
@@ -85,7 +85,8 @@ This multi-timeframe approach combines:
    - Initial validation performed
 
 2. Trade Execution:
-   - Tradovate API called for order placement
+   - OANDA API called for order placement
+   - Tradovate and Coinbase are not yet implemented
    - Order confirmation received
    - State updated based on execution
 
@@ -100,6 +101,7 @@ The system routes trades to different brokers based on both the instrument type 
 Broker Routing Rules:
 
 OANDA: All Forex pairs (e.g., EUR_USD, GBP_JPY) with exchange = OANDA
+Coinbase: All crypto pairs (e.g., BTC_USD, ETH_USD) with echange = Coinbase
 Tradovate: All Futures contracts with their respective exchanges:
 
 - CME: ES (S&P 500), NQ (Nasdaq), RTY (Russell)
@@ -171,8 +173,10 @@ The webhook payload structure remains the same for both instrument types, with t
 - AWS Account
 - Terraform installed
 - AWS CLI configured
-- TradingView Pro account
+- TradingView Premium account
+- OANDA account
 - Tradovate account
+- Coinbase Account
 - Required IAM Permissions
   - Parameter Store access:
 
@@ -222,7 +226,6 @@ The webhook payload structure remains the same for both instrument types, with t
 - Lambda function errors
 - High latency notifications
 - Failed trade executions
-- State management issues
 
 ### Maintenance Tasks
 
@@ -246,7 +249,7 @@ The webhook payload structure remains the same for both instrument types, with t
    - TradingView webhook delay (~100ms)
    - API Gateway processing (~10ms)
    - Lambda execution (~50-100ms)
-   - Tradovate API (~50-100ms)
+   - OANDA/Tradovate/Coinbase API (~50-100ms)
 
 2. Optimizations:
    - Regional endpoint usage
@@ -270,6 +273,7 @@ Approximate monthly costs:
    - TradingView Pro: $15-30/month
    - OANDA Account: Free (commission per trade)
    - Tradovate Account: $99/month (includes data feed)
+   - Coinbase Account: Free (comission per trade)
    - Tradovate API Access: $25/month
    - Total External Costs: $139-154/month
 
@@ -295,7 +299,7 @@ Notes:
 ### Data Security
 
 - Secrets Manager for API keys
-- Encrypted state storage
+- Encrypted terraform state storage in S3
 - Secure API endpoints
 - Limited permissions
 - Parameter Store for secure credential storage
@@ -433,6 +437,9 @@ Notes:
      export TRADOVATE_USERNAME=your_username
      export TRADOVATE_PASSWORD=your_password
      export TRADOVATE_APP_ID=your_app_id
+     export OANDA_SECRET=your_oanda_secret
+     export OANDA_ACCOUNT=your_oanda_account
+     export COINBASE_SECRET=your_coinbase_secret
      ```
 
    - Mock Parameter Store responses when needed:
