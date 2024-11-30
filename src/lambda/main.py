@@ -99,7 +99,8 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     # Check if the request is for the status endpoint
     if path == "/oandastatus":
         account_status = check_account_status(account_id=account, access_token=secret)
-        return {
+        response = {
+            "isBase64Encoded": False,
             "statusCode": 200,
             "headers": {
                 "Content-Type": "application/json"
@@ -107,6 +108,8 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
             "body": json.dumps(
                 account_status
             )}
+        logger.info(f"Sending response: {response}")
+        return response
 
     # Check if the request is for the webhook endpoint
     if path == "/webhook":
