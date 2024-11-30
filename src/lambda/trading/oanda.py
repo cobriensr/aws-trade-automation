@@ -68,8 +68,8 @@ def check_position_exists(account_id: str, instrument: str, access_token: str) -
     # Convert response to JSON
     positions = response.json()
 
-    # Format the instrument to OANDA format (adding underscore)
-    oanda_instrument = f"{instrument[:3]}_{instrument[3:]}"
+    # Map the instrument to the OANDA symbol
+    oanda_instrument = SYMBOL_MAP[instrument]
 
     # Check if instrument exists in any position
     for position in positions.get("positions", []):

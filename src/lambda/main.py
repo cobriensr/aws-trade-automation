@@ -163,5 +163,5 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
             }
         return {
             "statusCode": 400,
-            "body": json.dumps("Futures exchange not supported"),
+            "body": json.dumps("Futures and crypto exchanges are not yet supported"),
         }
