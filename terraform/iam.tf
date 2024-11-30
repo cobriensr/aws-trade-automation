@@ -92,7 +92,7 @@ resource "aws_iam_role" "api_gateway_role" {
   tags = local.common_tags
 }
 
-# Allow API Gateway to invoke the Lambda function
+# Allow API Gateway to invoke the Lambda function and write logs
 resource "aws_iam_role_policy" "api_gateway_policy" {
   name = "${local.name_prefix}-api-gateway-policy"
   role = aws_iam_role.api_gateway_role.id
@@ -104,6 +104,22 @@ resource "aws_iam_role_policy" "api_gateway_policy" {
         Effect   = "Allow"
         Action   = "lambda:InvokeFunction"
         Resource = aws_lambda_function.main.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:PutLogEvents",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents"
+        ]
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/apigateway/*",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/apigateway/*:log-stream:*"
+        ]
       }
     ]
   })

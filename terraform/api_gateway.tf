@@ -13,8 +13,10 @@ resource "aws_apigatewayv2_api" "main" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins = ["*"]
-    allow_methods = ["POST"]
+    allow_origins  = ["*"]
+    allow_methods  = ["POST", "GET"]
+    allow_headers  = ["Content-Type"]
+    expose_headers = ["Content-Type"]
   }
 
   tags = local.common_tags
@@ -26,8 +28,10 @@ resource "aws_apigatewayv2_stage" "main" {
   auto_deploy = true
 
   default_route_settings {
-    throttling_burst_limit = 100
-    throttling_rate_limit  = 50
+    throttling_burst_limit   = 100
+    throttling_rate_limit    = 50
+    detailed_metrics_enabled = true
+    logging_level            = "INFO"
   }
 
   access_log_settings {
