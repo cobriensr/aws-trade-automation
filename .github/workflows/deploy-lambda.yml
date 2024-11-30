@@ -4,27 +4,31 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'src/lambda/**'  # Only trigger on Lambda code changes
-      - 'requirements.txt'  # Also trigger on requirements changes
-      - 'src/lambda/requirements.txt'  # Also trigger on requirements changes (duplicated)
-      - 'terraform/**'  # Also trigger on Terraform changes
+      - 'src/lambda/**'
+      - 'requirements.txt'
+      - 'src/lambda/requirements.txt'
+      - 'terraform/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
 
 jobs:
-  deploy:
+  drift-check:
     runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
+    defaults:
+      run:
+        working-directory: ./terraform
 
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.12'
+    steps:
+    - uses: actions/checkout@v4
 
     - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2
+      uses: hashicorp/setup-terraform@v3
       with:
-        terraform_version: '1.5.0'
+        terraform_version: '1.7.0'
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
@@ -32,18 +36,74 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
-        # Allow access to us-east-2 for S3 backend
         role-duration-seconds: 1200
         role-skip-session-tagging: true
         mask-aws-account-id: true
 
-    # Add credentials for us-east-2 region for S3 backend
-    - name: Configure AWS credentials for Terraform backend
+    - name: Create tfvars file
+      shell: bash
+      run: |
+        cat << 'EOF' > terraform.tfvars
+        ${{ secrets.TERRAFORM_TFVARS }}
+        EOF
+
+    - name: Verify tfvars (safely)
+      run: |
+        echo "Checking if tfvars file exists..."
+        if [ -f terraform.tfvars ]; then
+          echo "✅ terraform.tfvars file exists"
+          echo "Number of variables defined: $(grep -c "=" terraform.tfvars)"
+          echo "Variable names defined:"
+          grep -o '^[^=]*' terraform.tfvars | sed 's/^/- /'
+        else
+          echo "❌ terraform.tfvars file not found"
+          exit 1
+        fi
+
+    - name: Setup Terraform Plugin Cache
+      run: |
+        mkdir -p ~/.terraform.d/plugin-cache
+        echo 'plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"' > ~/.terraformrc
+
+    - name: Cache Terraform
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.terraform.d/plugin-cache
+          .terraform
+        key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+        restore-keys: |
+          ${{ runner.os }}-terraform-
+
+    - name: Check for Configuration Drift
+      run: |
+        terraform init
+        terraform validate
+        
+        terraform plan --refresh-only -detailed-exitcode -lock=false -var-file="terraform.tfvars"
+        if [ $? -eq 2 ]; then
+          echo "❌ Configuration drift detected! Please fix before deploying."
+          exit 1
+        fi
+
+  deploy:
+    needs: drift-check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.12'
+
+    - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-2
+        aws-region: us-east-1
         role-duration-seconds: 1200
         role-skip-session-tagging: true
         mask-aws-account-id: true
@@ -59,39 +119,7 @@ jobs:
         cd src/lambda
         zip -r ../../terraform/lambda_function.zip ./*
 
-    - name: Initialize Terraform
-      run: |
-        cd terraform
-        terraform init
-
-    - name: Check Terraform Plan
-      id: plan
-      run: |
-        cd terraform
-        # Capture the plan output
-        terraform plan -detailed-exitcode 2>&1 | tee plan.txt
-      continue-on-error: true
-
-    - name: Check for drift
-      run: |
-        cd terraform
-        if [ -f plan.txt ]; then
-          if grep -q "No changes." plan.txt; then
-            echo "No changes detected in Terraform plan"
-            exit 0
-          else
-            echo "Configuration drift detected! Terraform plan shows changes that need to be reviewed."
-            echo "Please review the plan output above and make necessary adjustments."
-            cat plan.txt
-            exit 1
-          fi
-        else
-          echo "Plan file not found"
-          exit 1
-        fi
-
     - name: Update Lambda function
-      if: success()
       run: |
         aws lambda update-function-code \
           --function-name trading-prod-function \
