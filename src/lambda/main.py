@@ -161,3 +161,7 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
                 "statusCode": 200,
                 "body": json.dumps("Webhook processed successfully"),
             }
+        return {
+            "statusCode": 400,
+            "body": json.dumps("Futures exchange not supported"),
+        }
