@@ -2,6 +2,7 @@
 import os
 import json
 import logging
+import asyncio
 from typing import Dict, Tuple
 from pathlib import Path
 import boto3
@@ -51,8 +52,8 @@ def configure_logger(context: Context) -> None:
     logger.handlers.clear()
     
     # Add handler with formatter
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
+    log_handler = logging.StreamHandler()
+    log_handler.setFormatter(formatter)
     logger.addHandler(handler)
 
     # Add context information
@@ -149,3 +150,7 @@ async def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dic
             'statusCode': 200,
             'body': json.dumps('Webhook processed successfully')
         }
+
+def handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(lambda_handler(event, context))
