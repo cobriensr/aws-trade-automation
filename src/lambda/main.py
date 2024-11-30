@@ -3,6 +3,7 @@
 import os
 import json
 import logging
+import datetime
 from typing import Dict, Tuple
 from pathlib import Path
 import boto3
@@ -85,10 +86,12 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
         return {
             "statusCode": 200,
             "headers": {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"  # Add CORS header if needed
             },
             "body": json.dumps({
-                "status": "ok"
+                "message": "ok",
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
             })
         }
 
