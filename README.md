@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project implements an automated trading system that executes trades based on TradingView alerts using the Tradovate API. The system uses a trend-following strategy with intelligent entry and exit management, implemented through a serverless architecture on AWS.
+This project implements an automated trading system that executes trades based on TradingView alerts using multiple brokerage API's such as OANDA for Forex, Tradovate for Futures and Coinbase for Cryptocurrency. The system uses a trend-following strategy with intelligent entry and exit management, implemented through a serverless architecture on AWS.
 
 ## Trading Strategy
 
