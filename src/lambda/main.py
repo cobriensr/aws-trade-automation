@@ -82,7 +82,7 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     logger.info(f"Received request for path: {path}")
 
     # Check if the request is for the healthcheck endpoint
-    if path == "/healthcheck":
+    if path == "/healthcheck" or path.endswith("/healthcheck"):
         response = {
             "isBase64Encoded": False,
             "statusCode": 200,
@@ -91,13 +91,13 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
             },
             "body": json.dumps({
                 "status": "ok"
-            }),
+            })
         }
         logger.info(f"Sending response: {response}")
         return response
 
     # Check if the request is for the status endpoint
-    if path == "/oandastatus":
+    if path == "/oandastatus" or path.endswith("/oandastatus"):
         account_status = check_account_status(account_id=account, access_token=secret)
         response = {
             "isBase64Encoded": False,
@@ -112,7 +112,7 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
         return response
 
     # Check if the request is for the webhook endpoint
-    if path == "/webhook":
+    if path == "/webhook" or path.endswith("/webhook"):
 
         # Parse webhook
         webhook_data = event["body"]
