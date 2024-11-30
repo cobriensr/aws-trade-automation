@@ -82,12 +82,27 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
 
     # Check if the request is for the healthcheck endpoint
     if path == "/healthcheck":
-        return {"statusCode": 200, "body": json.dumps("ok")}
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps({
+                "status": "ok"
+            })
+        }
 
     # Check if the request is for the status endpoint
     if path == "/oandastatus":
         account_status = check_account_status(account_id=account, access_token=secret)
-        return {"statusCode": 200, "body": json.dumps(account_status)}
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps(
+                account_status
+            )}
 
     # Check if the request is for the webhook endpoint
     if path == "/webhook":
