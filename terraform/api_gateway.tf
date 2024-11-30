@@ -52,46 +52,31 @@ resource "aws_apigatewayv2_stage" "main" {
   }
 }
 
+# Single integration for all routes
 resource "aws_apigatewayv2_integration" "lambda" {
   api_id                 = aws_apigatewayv2_api.main.id
   integration_type       = "AWS_PROXY"
   integration_method     = "POST"
   integration_uri        = aws_lambda_function.main.invoke_arn
   payload_format_version = "2.0"
+  description            = "Lambda integration for all endpoints"
 }
 
-resource "aws_apigatewayv2_route" "main" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "POST /webhook"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
-}
-
-# Healthcheck endpoint configuration
+# Routes using the single integration
 resource "aws_apigatewayv2_route" "healthcheck" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "GET /healthcheck"
-  target    = "integrations/${aws_apigatewayv2_integration.healthcheck.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
-resource "aws_apigatewayv2_integration" "healthcheck" {
-  api_id                 = aws_apigatewayv2_api.main.id
-  integration_type       = "AWS_PROXY"
-  integration_method     = "POST"
-  integration_uri        = aws_lambda_function.main.invoke_arn
-  payload_format_version = "2.0"
-}
-
-# Oandastatus endpoint configuration
 resource "aws_apigatewayv2_route" "oandastatus" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "GET /oandastatus"
-  target    = "integrations/${aws_apigatewayv2_integration.oandastatus.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
-resource "aws_apigatewayv2_integration" "oandastatus" {
-  api_id                 = aws_apigatewayv2_api.main.id
-  integration_type       = "AWS_PROXY"
-  integration_method     = "POST"
-  integration_uri        = aws_lambda_function.main.invoke_arn
-  payload_format_version = "2.0"
+resource "aws_apigatewayv2_route" "webhook" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "POST /webhook"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
