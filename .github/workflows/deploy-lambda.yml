@@ -16,14 +16,16 @@ permissions:
   issues: write
 
 jobs:
-  drift-check:
+  build-and-check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./terraform
-
+    
     steps:
     - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.12'
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -40,7 +42,15 @@ jobs:
         role-skip-session-tagging: true
         mask-aws-account-id: true
 
+    - name: Install dependencies and create Lambda package
+      run: |
+        pip install -r requirements.txt --target ./src/lambda
+        cd src/lambda
+        rm -rf *.dist-info __pycache__
+        zip -r ../../terraform/lambda_function.zip ./*
+
     - name: Create tfvars file
+      working-directory: ./terraform
       shell: bash
       run: |
         cat << 'EOF' > terraform.tfvars
@@ -48,6 +58,7 @@ jobs:
         EOF
 
     - name: Verify tfvars (safely)
+      working-directory: ./terraform
       run: |
         echo "Checking if tfvars file exists..."
         if [ -f terraform.tfvars ]; then
@@ -76,6 +87,7 @@ jobs:
           ${{ runner.os }}-terraform-
 
     - name: Check for Configuration Drift
+      working-directory: ./terraform
       run: |
         terraform init
         terraform validate
@@ -86,40 +98,8 @@ jobs:
           exit 1
         fi
 
-  deploy:
-    needs: drift-check
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.12'
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-        role-duration-seconds: 1200
-        role-skip-session-tagging: true
-        mask-aws-account-id: true
-
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt --target ./src/lambda
-        cd src/lambda
-        rm -rf *.dist-info __pycache__
-
-    - name: Create deployment package
-      run: |
-        cd src/lambda
-        zip -r ../../terraform/lambda_function.zip ./*
-
     - name: Update Lambda function
+      if: success()
       run: |
         aws lambda update-function-code \
           --function-name trading-prod-function \
