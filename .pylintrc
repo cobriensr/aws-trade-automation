@@ -8,4 +8,5 @@ disable=
     C0303,  # trailing-whitespace
     C0305,  # trailing-newlines
     C0116,  # missing-function-docstring
-    C0304   # missing-final-newline
+    C0304,  # missing-final-newline
+    R1710   # inconsistent-return-statements
