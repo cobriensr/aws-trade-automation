@@ -118,7 +118,9 @@ resource "aws_iam_role_policy" "api_gateway_policy" {
         ]
         Resource = [
           "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/apigateway/*",
-          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/apigateway/*:log-stream:*"
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/apigateway/*:log-stream:*",
+          "${aws_cloudwatch_log_group.api_logs.arn}",
+          "${aws_cloudwatch_log_group.api_logs.arn}:*"
         ]
       }
     ]

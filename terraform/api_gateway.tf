@@ -14,9 +14,10 @@ resource "aws_apigatewayv2_api" "main" {
 
   cors_configuration {
     allow_origins  = ["*"]
-    allow_methods  = ["POST", "GET"]
-    allow_headers  = ["Content-Type"]
+    allow_methods  = ["POST", "GET", "OPTIONS"]
+    allow_headers  = ["Content-Type", "Authorization", "X-Amz-Date", "X-Api-Key", "X-Amz-Security-Token"]
     expose_headers = ["Content-Type"]
+    max_age        = 300
   }
 
   tags = local.common_tags
