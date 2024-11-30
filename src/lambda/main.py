@@ -145,7 +145,7 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
                     instrument=symbol,
                     access_token=secret
                 )
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Webhook processed successfully')
-    }
+            return {
+                'statusCode': 200,
+                'body': json.dumps('Webhook processed successfully')
+            }
