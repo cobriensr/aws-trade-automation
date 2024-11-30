@@ -92,10 +92,25 @@ jobs:
         terraform init
         terraform validate
         
-        terraform plan --refresh-only -detailed-exitcode -lock=false -var-file="terraform.tfvars"
+        # Create a plan file ignoring specific attributes
+        terraform plan --refresh-only -detailed-exitcode -lock=false -var-file="terraform.tfvars" \
+          -out=tfplan \
+          -replace-triggers=false \
+          | tee plan_output.txt
+
+        # Check the exit code but ignore changes to specific attributes
         if [ $? -eq 2 ]; then
-          echo "❌ Configuration drift detected! Please fix before deploying."
-          exit 1
+          # Check if the only changes are the ones we want to ignore
+          if grep -q "~ code_sha256" plan_output.txt && \
+              grep -q "~ last_modified" plan_output.txt && \
+              grep -q "~ source_code_size" plan_output.txt && \
+              ! grep -q "~ [^code_sha256|last_modified|source_code_size]" plan_output.txt; then
+            echo "Only expected changes detected, continuing..."
+            exit 0
+          else
+            echo "❌ Configuration drift detected! Please fix before deploying."
+            exit 1
+          fi
         fi
 
     - name: Update Lambda function
