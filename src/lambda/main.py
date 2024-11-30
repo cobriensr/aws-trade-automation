@@ -73,7 +73,7 @@ def configure_logger(context: Context) -> None:
 def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     # Configure logging at the start of execution
     configure_logger(context)
-    
+
     # Log the entire event for debugging
     logger.debug(f"Full event: {json.dumps(event, indent=2)}")
 
@@ -88,12 +88,8 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     if path == "/healthcheck" or path.endswith("/healthcheck"):
         response = {
             "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json"
-            },
-            "body": json.dumps({
-                "status": "ok"
-            })
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"status": "ok"}),
         }
         logger.info(f"Sending healthcheck response: {response}")
         return response
@@ -104,12 +100,9 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
         response = {
             "isBase64Encoded": False,
             "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json"
-            },
-            "body": json.dumps(
-                account_status
-            )}
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps(account_status),
+        }
         logger.info(f"Sending response: {response}")
         return response
 
