@@ -3,7 +3,6 @@
 import os
 import json
 import logging
-import datetime
 from typing import Dict, Tuple
 from pathlib import Path
 import boto3
@@ -80,20 +79,22 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
 
     # Get the request path from the event
     path = event.get("path", "")
+    logger.info(f"Received request for path: {path}")
 
     # Check if the request is for the healthcheck endpoint
     if path == "/healthcheck":
-        return {
+        response = {
+            "isBase64Encoded": False,
             "statusCode": 200,
             "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"  # Add CORS header if needed
+                "Content-Type": "application/json"
             },
             "body": json.dumps({
-                "message": "ok",
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
-            })
+                "status": "ok"
+            }),
         }
+        logger.info(f"Sending response: {response}")
+        return response
 
     # Check if the request is for the status endpoint
     if path == "/oandastatus":
