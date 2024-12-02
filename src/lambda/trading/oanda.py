@@ -27,6 +27,12 @@ SYMBOL_MAP = {
     "USDCHF": "USD_CHF",
     "USDCAD": "USD_CAD",
     "AUDUSD": "AUD_USD",
+    "NZDUSD": "NZD_USD",
+    "EURJPY": "EUR_JPY",
+    "GBPJPY": "GBP_JPY",
+    "EURGBP": "EUR_GBP",
+    "AUDJPY": "AUD_JPY",
+    "EURAUD": "EUR_AUD",
 }
 
 
