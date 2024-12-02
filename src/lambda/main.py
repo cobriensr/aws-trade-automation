@@ -110,7 +110,7 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     if path == "/webhook" or path.endswith("/webhook"):
 
         # Parse webhook
-        webhook_data = event["body"]
+        webhook_data = json.loads(event["body"])
 
         # Parse webhook data
         signal_direction = webhook_data["signal"]["direction"]
