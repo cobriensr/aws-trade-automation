@@ -71,13 +71,19 @@ The above diagram illustrates the complete flow of the trading system, from Trad
    - 15-second timeout for trade processing
    - Python 3.12 runtime
 
-3. Networking
+3. Aurora PostgreSQL Serverless v2
+   - Serverless auto-scaling (8-16 ACUs)
+   - Multi-AZ deployment for high availability
+   - Trade logging and position tracking
+   - Secure VPC deployment with private subnets
+
+4. Networking
    - Custom VPC with public/private subnets
    - NAT Gateway for Lambda internet access
    - Security groups for access control
    - Route tables for traffic management
 
-4. Parameter Store
+5. Parameter Store
    - Secure storage for authentication tokens
    - Manages Tradovate API credentials
    - Handles token refresh lifecycle
@@ -270,10 +276,11 @@ Approximate monthly costs:
 1. AWS Service Costs:
    - Lambda: $5-10 (based on ~100k invocations)
    - NAT Gateway: $32 (single AZ)
-   - API Gateway: $3.50-7 (based on ~100k requests)
+   - API Gateway: $3.50-$7.00 (based on ~100k requests)
+   - Aurora Serverless v2: $8-10
    - Parameter Store: Free for standard parameters
    - CloudWatch Logs: $1-2
-   - Total AWS Costs: $41.50-51.00
+   - Total AWS Costs: $49.50-61.00
 
 2. External Service Costs:
    - TradingView Pro: $15-30/month
