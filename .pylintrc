@@ -9,4 +9,7 @@ disable=
     C0305,  # trailing-newlines
     C0116,  # missing-function-docstring
     C0304,  # missing-final-newline
-    R1710   # inconsistent-return-statements
+    R0914,  # too-many-locals
+    R0911,  # too-many-return-statements
+    R0912,  # too-many-branches
+    R0915   # too-many-statements
