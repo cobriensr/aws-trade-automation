@@ -48,8 +48,6 @@ jobs:
         cd src/lambda
         # Remove tests
         find . -type d -name "tests" -exec rm -rf {} +
-        # Remove docs
-        find . -type d -name "docs" -exec rm -rf {} +
         # Remove examples
         find . -type d -name "examples" -exec rm -rf {} +
         # Remove dist info
