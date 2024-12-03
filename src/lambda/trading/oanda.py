@@ -1,5 +1,6 @@
 """OANDA Utility Functions"""
 
+from typing import Dict
 import requests
 
 # Set global variables
@@ -85,7 +86,7 @@ def check_position_exists(account_id: str, instrument: str, access_token: str) -
     return False
 
 
-def close_long_position(account_id: str, instrument: str, access_token: str) -> dict:
+def close_long_position(account_id: str, instrument: str, access_token: str) -> Dict:
     """
     Close an existing long position for an instrument
 
@@ -133,7 +134,7 @@ def close_long_position(account_id: str, instrument: str, access_token: str) -> 
     raise RuntimeError(f"Unexpected error: {response.status_code} - {response.text}")
 
 
-def close_short_position(account_id: str, instrument: str, access_token: str) -> dict:
+def close_short_position(account_id: str, instrument: str, access_token: str) -> Dict:
     """
     Close an existing long position for an instrument
 
@@ -182,7 +183,7 @@ def close_short_position(account_id: str, instrument: str, access_token: str) ->
 
 def create_long_market_order(
     account_id: str, instrument: str, access_token: str
-) -> dict:
+) -> Dict:
     """
     Create a market order
 
@@ -245,7 +246,7 @@ def create_long_market_order(
 
 def create_short_market_order(
     account_id: str, instrument: str, access_token: str
-) -> dict:
+) -> Dict:
     """
     Create a market order
 
@@ -306,7 +307,7 @@ def create_short_market_order(
     raise RuntimeError(f"Unexpected error: {response.status_code} - {response.text}")
 
 
-def check_account_status(account_id: str, access_token: str) -> dict:
+def check_account_status(account_id: str, access_token: str) -> Dict:
     """
     Check the status of an OANDA account
 
