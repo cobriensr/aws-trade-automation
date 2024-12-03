@@ -17,9 +17,18 @@ from trading.oanda import (
     create_long_market_order,
     create_short_market_order,
 )
+from trading.tradovate import ( 
+    get_auth_token, 
+    get_historical_data_dict, 
+    get_position, 
+    get_accounts,
+    liquidate_position, 
+    place_buy_order, 
+    place_sell_order
+)
 
 
-def get_credentials() -> Tuple[str, str]:
+def get_credentials() -> Tuple[str, str, str]:
     """Get credentials from either Parameter Store or .env file"""
     # First try to get from Parameter Store (production)
     try:
@@ -30,17 +39,21 @@ def get_credentials() -> Tuple[str, str]:
         account = ssm.get_parameter(
             Name="/tradovate/OANDA_ACCOUNT", WithDecryption=True
         )["Parameter"]["Value"]
-        return secret, account
+        api_secret = ssm.get_parameter(
+            Name="/tradovate/DATABENTO_API_KEY", WithDecryption=True
+        )["Parameter"]["Value"]
+        return secret, account, api_secret
     except Exception as exc:
         # If Parameter Store fails, try local .env (development)
         load_dotenv(Path(__file__).parents[2] / ".env")
         secret = os.getenv("OANDA_SECRET")
         account = os.getenv("OANDA_ACCOUNT")
+        api_secret = os.getenv("DATABENTO_API_KEY")
         if not secret or not account:
             raise ValueError(
                 "Could not load credentials from Parameter Store or .env"
             ) from exc
-        return secret, account
+        return secret, account, api_secret
 
 
 # Configure logger
@@ -69,7 +82,6 @@ def configure_logger(context: Context) -> None:
     logger.info(f"Log Group: {context.log_group_name}")
     logger.info(f"Log Stream: {context.log_stream_name}")
 
-
 def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     # Configure logging at the start of execution
     configure_logger(context)
@@ -78,7 +90,7 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     logger.debug(f"Full event: {json.dumps(event, indent=2)}")
 
     # Get credentials at the start of execution
-    secret, account = get_credentials()
+    secret, account, api_secret = get_credentials()
 
     # Get the request path from the event
     path = event.get("rawPath", event.get("path", ""))
@@ -118,7 +130,7 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
         exchange = webhook_data["market_data"]["exchange"]
 
         if exchange == "OANDA":
-            # Usage example:
+            # Check all positions
             has_position = check_position_exists(
                 account_id=account, instrument=symbol, access_token=secret
             )
@@ -154,7 +166,56 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
                 "statusCode": 200,
                 "body": json.dumps("Webhook processed successfully"),
             }
+        if exchange in ["NYMEX", "COMEX", "CBOT", "CME", "ICE"]:
+            try:
+                access_token, expiration_time = get_auth_token()
+                if access_token is None:
+                    print(
+                        "Failed to get access token - captcha required or authentication failed"
+                    )
+                else:
+                    print(f"Successfully obtained access token. Expires at: {expiration_time}")
+            except Exception as e:
+                print(f"Error getting auth token: {e}")
+            # Get the mapping of symbols to instrument names
+            mapping_dict = get_historical_data_dict(api_key=api_secret)
+            # Get the account id
+            account = get_accounts(access_token)
+            # Get the position for the symbol
+            account_id, contract_id, net_position = get_position(token=access_token, instrument=mapping_dict[symbol])
+            # If the position does not exist
+            if not all([account_id, contract_id, net_position]):
+                if signal_direction == "LONG":
+                    # Place a buy order
+                    place_buy_order(instrument=mapping_dict[symbol], account_id=account, quantity=1, token=access_token)
+                if signal_direction == "SHORT":
+                    # Place a sell order
+                    place_sell_order(instrument=mapping_dict[symbol], account_id=account, quantity=1, token=access_token)
+            if net_position > 0 and signal_direction == "SHORT":
+                # Liquidate the position
+                liquidate_position(contract_id=contract_id, account_id=account_id, token=access_token)
+                # Place a sell order
+                place_sell_order(instrument=mapping_dict[symbol], account_id=account, quantity=1, token=access_token)
+            if net_position > 0 and signal_direction == "LONG":
+                return {
+                    "statusCode": 200,
+                    "body": json.dumps("Position already exists"),
+                }
+            if net_position < 0 and signal_direction == "LONG":
+                # Liquidate the position
+                liquidate_position(contract_id=contract_id, account_id=account_id, token=access_token)
+                # Place a buy order
+                place_buy_order(instrument=mapping_dict[symbol], account_id=account, quantity=1, token=access_token)
+            if net_position < 0 and signal_direction == "SHORT":
+                return {
+                    "statusCode": 200,
+                    "body": json.dumps("Position already exists"),
+                }
+            return {
+                "statusCode": 200,
+                "body": json.dumps("Webhook processed successfully"),
+            }
         return {
             "statusCode": 400,
-            "body": json.dumps("Futures and crypto exchanges are not yet supported"),
+            "body": json.dumps("Cryptocurrency exchange not supported")
         }
