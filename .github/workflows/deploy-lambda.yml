@@ -44,7 +44,7 @@ jobs:
 
     - name: Install dependencies and create Lambda package
       run: |
-        pip install --no-cache-dir -r requirements.txt --target ./src/lambda
+        pip install -r requirements-lambda.txt --target ./src/lambda
         cd src/lambda
         # Remove tests
         find . -type d -name "tests" -exec rm -rf {} +
