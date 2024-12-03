@@ -235,6 +235,14 @@ src/lambda/python_dateutil/
 src/lambda/s3transfer/
 src/lambda/six.py
 src/lambda/yarl/
+src/lambda/databento/
+src/lambda/databento_dbn/
+src/lambda/numpy/
+src/lambda/pandas/
+src/lambda/pyarrow/
+src/lambda/pytz/
+src/lambda/tzdata/
+src/lambda/zstandard/
 
 # Python cache
 **/__pycache__/
