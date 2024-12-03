@@ -1,5 +1,3 @@
-aiohttp
-asyncio
 requests
 boto3
 python-dotenv
