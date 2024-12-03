@@ -19,7 +19,7 @@ resource "aws_lambda_function" "main" {
 
   vpc_config {
     subnet_ids         = values(aws_subnet.private)[*].id
-    security_group_ids = [aws_security_group.lambda.id]
+    security_group_ids = [aws_security_group.lambda.id, "sg-0f10a7b30f99f2156"]
   }
 
   tracing_config {

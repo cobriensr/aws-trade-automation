@@ -9,12 +9,14 @@ resource "aws_rds_cluster" "trading_db" {
   preferred_backup_window     = "05:24-05:54"
   preferred_maintenance_window = "sun:04:25-sun:04:55"
   db_subnet_group_name        = "default-vpc-027bf578d09033c51"
-  vpc_security_group_ids      = ["sg-0bdcf8219c98a6ff5", "sg-0b9d4372c88cfef16"]
+  vpc_security_group_ids      = ["sg-0bdcf8219c98a6ff5", "sg-0b9d4372c88cfef16", "sg-04fd04b67174f23cf"]
   storage_encrypted           = true
   enabled_cloudwatch_logs_exports = ["postgresql"]
   copy_tags_to_snapshot = true
   enable_http_endpoint = true
   skip_final_snapshot = true
+  enable_global_write_forwarding = true
+  enable_local_write_forwarding = true
   serverlessv2_scaling_configuration {
     min_capacity = 8
     max_capacity = 64
