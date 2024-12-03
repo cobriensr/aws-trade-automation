@@ -6,6 +6,7 @@ resource "aws_lambda_function" "main" {
   role          = aws_iam_role.lambda_role.arn
   handler       = "main.lambda_handler"
   runtime       = "python3.12"
+  layers = ["arn:aws:lambda:us-east-1:565625954376:layer:trading-dependencies:1"]
   timeout       = 30
   memory_size   = 1024
 
