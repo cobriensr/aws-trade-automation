@@ -8,9 +8,9 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
   metric_name         = "Errors"
   namespace           = "AWS/Lambda"
   period              = "60"
-  statistic          = "Sum"
-  threshold          = "0"
-  alarm_description  = join("\n", [
+  statistic           = "Sum"
+  threshold           = "0"
+  alarm_description = join("\n", [
     "Lambda function errors detected",
     "",
     "Function: ${aws_lambda_function.main.function_name}",
@@ -19,7 +19,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
     "View logs at:",
     "https://console.aws.amazon.com/cloudwatch/home?region=${data.aws_region.current.name}#logsV2:log-groups/log-group/${aws_cloudwatch_log_group.lambda_logs.name}"
   ])
-  alarm_actions     = [aws_sns_topic.alerts.arn]
+  alarm_actions      = [aws_sns_topic.alerts.arn]
   treat_missing_data = "notBreaching"
 
   dimensions = {

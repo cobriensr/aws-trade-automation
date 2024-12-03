@@ -1,19 +1,25 @@
 # lambda.tf
 resource "aws_lambda_function" "main" {
-  filename         = "lambda_function.zip"
-  source_code_hash = filebase64sha256("lambda_function.zip")
-  function_name    = "${local.name_prefix}-function"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "main.lambda_handler"
-  runtime          = "python3.12"
-  timeout          = 30
-  memory_size      = 1024
+  s3_bucket     = aws_s3_bucket.lambda_deployment.id
+  s3_key        = "lambda_function.zip"
+  function_name = "${local.name_prefix}-function"
+  role          = aws_iam_role.lambda_role.arn
+  handler       = "main.lambda_handler"
+  runtime       = "python3.12"
+  timeout       = 30
+  memory_size   = 1024
 
   environment {
     variables = {
-      FUNCTION_NAME = "${local.name_prefix}-function"
-      OANDA_SECRET  = var.oanda_secret
-      OANDA_ACCOUNT = var.oanda_account
+      FUNCTION_NAME       = "${local.name_prefix}-function"
+      OANDA_SECRET        = "${data.aws_ssm_parameter.oanda_secret.value}"
+      OANDA_ACCOUNT       = "${data.aws_ssm_parameter.oanda_account.value}"
+      DATABENTO_API_KEY   = "${data.aws_ssm_parameter.databento_key.value}"
+      TRADOVATE_USERNAME  = "${data.aws_ssm_parameter.tradovate_username.value}"
+      TRADOVATE_PASSWORD  = "${data.aws_ssm_parameter.tradovate_password.value}"
+      TRADOVATE_DEVICE_ID = "${data.aws_ssm_parameter.tradovate_device_id.value}"
+      TRADOVATE_CID       = "${data.aws_ssm_parameter.tradovate_cid.value}"
+      TRADOVATE_SECRET    = "${data.aws_ssm_parameter.tradovate_secret.value}"
     }
   }
 
