@@ -44,10 +44,12 @@ jobs:
 
     - name: Install dependencies and create Lambda package
       run: |
-        pip install -r requirements.txt --target ./src/lambda
+        pip install --no-cache-dir --only-binary :all: -r requirements.txt --target ./src/lambda
         cd src/lambda
         find . -type d -name "tests" -exec rm -rf {} +
         find . -type d -name "docs" -exec rm -rf {} +
+        find . -name "*.pyc" -delete
+        find . -name "*.pyo" -delete
         rm -rf *.dist-info __pycache__
         zip -r ../../terraform/lambda_function.zip ./*
         aws s3 cp ../../terraform/lambda_function.zip s3://trading-lambda-deployment/lambda_function.zip
