@@ -118,9 +118,14 @@ jobs:
           exit 1
         fi
 
+    - name: Upload to S3
+      run: |
+        aws s3 mb s3://trading-lambda-deployment || true
+        aws s3 cp terraform/lambda_function.zip s3://trading-lambda-deployment/
+
     - name: Update Lambda function
-      if: success()
       run: |
         aws lambda update-function-code \
           --function-name trading-prod-function \
-          --zip-file fileb://terraform/lambda_function.zip
+          --s3-bucket trading-lambda-deployment \
+          --s3-key lambda_function.zip
