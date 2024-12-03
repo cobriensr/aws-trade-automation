@@ -52,6 +52,8 @@ jobs:
         find . -type d -name "docs" -exec rm -rf {} +
         # Remove examples
         find . -type d -name "examples" -exec rm -rf {} +
+        # Remove dist info
+        find . -type d -name "*.dist-info" -exec rm -rf {} +
         # Remove cache files
         find . -name "*.pyc" -delete
         find . -name "*.pyo" -delete
