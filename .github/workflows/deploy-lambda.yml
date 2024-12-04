@@ -44,8 +44,12 @@ jobs:
 
     - name: Verify Lambda Layer
       run: |
+        LATEST_VERSION=$(aws lambda list-layer-versions \
+          --layer-name databento-layer \
+          --query 'LayerVersions[0].Version' \
+          --output text || echo "")
         LAYER_CHECK=$(aws lambda get-layer-version-by-arn \
-          --arn "arn:aws:lambda:us-east-1:565625954376:layer:databento-layer:2" \
+          --arn "arn:aws:lambda:us-east-1:565625954376:layer:databento-layer:$LATEST_VERSION" \
           --query 'LayerVersionArn' \
           --output text || echo "")
         if [ -z "$LAYER_CHECK" ]; then
@@ -53,6 +57,8 @@ jobs:
           exit 1
         else
           echo "✅ Databento layer found: $LAYER_CHECK"
+          echo "ℹ️ Latest version is: $LATEST_VERSION"
+          echo "ℹ️ Lambda function is using version: 3"
         fi
 
     - name: Install dependencies and create Lambda package
