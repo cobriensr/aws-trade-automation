@@ -1,14 +1,17 @@
 FROM public.ecr.aws/lambda/python:3.12
 
-# Install required tools
-RUN microdnf install -y zip findutils
+# Install required tools and development files
+RUN microdnf install -y zip findutils gcc make python3-devel
 
 # Create the proper Python package directory structure
 RUN mkdir -p /opt/python/lib/python3.12/site-packages
 
 # Copy requirements and install packages
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt -t /opt/python/lib/python3.12/site-packages/
+
+# Install databento with all dependencies
+RUN pip install --no-cache-dir databento -t /opt/python/lib/python3.12/site-packages/ && \
+    pip install --no-cache-dir databento-dbn -t /opt/python/lib/python3.12/site-packages/
 
 # Clean up unnecessary files
 RUN cd /opt/python/lib/python3.12/site-packages/ && \
