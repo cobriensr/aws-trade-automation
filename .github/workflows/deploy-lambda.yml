@@ -44,13 +44,15 @@ jobs:
 
     - name: Verify Lambda Layer
       run: |
-        LAYER_VERSION=$(aws lambda list-layer-versions \
-          --layer-name databento-layer \
-          --query 'LayerVersions[0].Version' \
-          --output text)
-        if [ -z "$LAYER_VERSION" ]; then
+        LAYER_CHECK=$(aws lambda get-layer-version-by-arn \
+          --arn "arn:aws:lambda:us-east-1:565625954376:layer:databento-layer:2" \
+          --query 'LayerVersionArn' \
+          --output text || echo "")
+        if [ -z "$LAYER_CHECK" ]; then
           echo "❌ Databento layer not found! Please ensure the layer is created first."
           exit 1
+        else
+          echo "✅ Databento layer found: $LAYER_CHECK"
         fi
 
     - name: Install dependencies and create Lambda package
