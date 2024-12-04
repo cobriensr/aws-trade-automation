@@ -1,23 +1,28 @@
 FROM public.ecr.aws/lambda/python:3.12@sha256:92c88c1adc374b073b07b12bd4045497af7da68230d47c2b330423115c5850dc
 
-# Install required tools and development files
+# Install required tools
 RUN microdnf install -y zip findutils gcc make python3-devel
 
-# Create the proper Python package directory structure
-WORKDIR /opt/python/lib/python3.12/site-packages
+# Set working directory to a temporary location
+WORKDIR /tmp/build
 
-# Create a requirements.txt file (each package on a new line)
-RUN echo "numpy==1.26.0" > /tmp/requirements.txt && \
-    echo "pandas==2.2.0" >> /tmp/requirements.txt && \
-    echo "pyarrow==14.0.1" >> /tmp/requirements.txt && \
-    echo "databento==0.45.0" >> /tmp/requirements.txt && \
-    echo "databento-dbn==0.23.1" >> /tmp/requirements.txt
+# Install packages to a clean directory
+RUN python -m venv /tmp/venv && \
+    source /tmp/venv/bin/activate && \
+    pip install --no-cache-dir \
+        numpy==1.26.0 \
+        pandas==2.2.0 \
+        pyarrow==14.0.1 \
+        databento==0.45.0 \
+        databento-dbn==0.23.1
 
-# Install all packages at once
-RUN pip install --no-cache-dir -r /tmp/requirements.txt -t .
+# Create the Lambda layer structure
+RUN mkdir -p /opt/python && \
+    cp -r /tmp/venv/lib/python3.12/site-packages/* /opt/python/
 
 # Clean up unnecessary files
-RUN find . -type d -name "tests" -exec rm -rf {} + && \
+RUN cd /opt/python && \
+    find . -type d -name "tests" -exec rm -rf {} + && \
     find . -type d -name "examples" -exec rm -rf {} + && \
     find . -type d -name "*.dist-info" -exec rm -rf {} + && \
     find . -type f -name "*.pyc" -delete && \
@@ -25,6 +30,6 @@ RUN find . -type d -name "tests" -exec rm -rf {} + && \
     find . -type d -name "__pycache__" -exec rm -rf {} + && \
     find . -type f -name "*.so" ! -name "_lib.cpython-312-x86_64-linux-gnu.so" -delete
 
-# Create zip from the /opt directory
-WORKDIR /opt
-RUN zip -r /layer.zip .
+# Create the final layer zip
+WORKDIR /
+RUN cd /opt && zip -r /layer.zip .
