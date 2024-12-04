@@ -42,6 +42,17 @@ jobs:
         role-skip-session-tagging: true
         mask-aws-account-id: true
 
+    - name: Verify Lambda Layer
+      run: |
+        LAYER_VERSION=$(aws lambda list-layer-versions \
+          --layer-name databento-layer \
+          --query 'LayerVersions[0].Version' \
+          --output text)
+        if [ -z "$LAYER_VERSION" ]; then
+          echo "❌ Databento layer not found! Please ensure the layer is created first."
+          exit 1
+        fi
+
     - name: Install dependencies and create Lambda package
       run: |
         pip install -r requirements-lambda.txt --target ./src/lambda
