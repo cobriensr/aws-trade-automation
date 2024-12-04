@@ -48,6 +48,10 @@ jobs:
           --layer-name databento-layer \
           --query 'LayerVersions[0].Version' \
           --output text || echo "")
+        CURRENT_VERSION=$(aws lambda get-function \
+          --function-name trading-prod-function \
+          --query 'Configuration.Layers[0].Arn' \
+          --output text | cut -d':' -f8)
         LAYER_CHECK=$(aws lambda get-layer-version-by-arn \
           --arn "arn:aws:lambda:us-east-1:565625954376:layer:databento-layer:$LATEST_VERSION" \
           --query 'LayerVersionArn' \
@@ -58,7 +62,7 @@ jobs:
         else
           echo "✅ Databento layer found: $LAYER_CHECK"
           echo "ℹ️ Latest version is: $LATEST_VERSION"
-          echo "ℹ️ Lambda function is using version: 3"
+          echo "ℹ️ Lambda function is using version: $CURRENT_VERSION"
         fi
 
     - name: Install dependencies and create Lambda package
