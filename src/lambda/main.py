@@ -21,6 +21,7 @@ from trading.tradovate import (
     get_auth_token,
     get_position,
     get_accounts,
+    get_cash_balance_snapshot,
     liquidate_position,
     place_buy_order,
     place_sell_order,
@@ -158,7 +159,7 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
         logger.info(f"Sending healthcheck response: {response}")
         return response
 
-    # Check if the request is for the status endpoint
+    # Check if the request is for the oanda status endpoint
     if path == "/oandastatus" or path.endswith("/oandastatus"):
         account_status = check_account_status(account_id=account, access_token=secret)
         response = {
@@ -166,6 +167,78 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
             "statusCode": 200,
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps(account_status),
+        }
+        logger.info(f"Sending response: {response}")
+        return response
+    
+    # check if the request is for the tradovate account endpoint
+    if path == "/tradovateaccounts" or path.endswith("/tradovateaccounts"):
+        try:
+            access_token, expiration_time = get_auth_token(
+                username=username,
+                password=password,
+                device_id=device_id,
+                cid=cid,
+                secret=tradovate_secret,
+            )
+            if access_token is None:
+                print(
+                    "Failed to get access token - captcha required or authentication failed"
+                )
+            else:
+                print(
+                    f"Successfully obtained access token. Expires at: {expiration_time}"
+                )
+        except Exception as e:
+            print(f"Error getting auth token: {e}")
+        # Get the account id
+        account = get_accounts(access_token)
+        response = {
+            "isBase64Encoded": False,
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps(account),
+        }
+        logger.info(f"Sending response: {response}")
+        return response
+    
+    # check if the request is for the tradovate status endpoint
+    if path == "/tradovatestatus" or path.endswith("/tradovatestatus"):
+        # Extract account_id from query parameters
+        query_parameters = event.get('queryStringParameters', {}) or {}
+        account_id = query_parameters.get('account_id')
+        
+        if not account_id:
+            return {
+                "statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": "account_id parameter is required"})
+            }
+        try:
+            access_token, expiration_time = get_auth_token(
+                username=username,
+                password=password,
+                device_id=device_id,
+                cid=cid,
+                secret=tradovate_secret,
+            )
+            if access_token is None:
+                print(
+                    "Failed to get access token - captcha required or authentication failed"
+                )
+            else:
+                print(
+                    f"Successfully obtained access token. Expires at: {expiration_time}"
+                )
+        except Exception as e:
+            print(f"Error getting auth token: {e}")
+        # Get the cash balance snapshot
+        cash_balance_snapshot = get_cash_balance_snapshot(access_token, account_id)
+        response = {
+            "isBase64Encoded": False,
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps(cash_balance_snapshot),
         }
         logger.info(f"Sending response: {response}")
         return response

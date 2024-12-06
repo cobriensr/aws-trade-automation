@@ -9,6 +9,7 @@ DEMO = "https://demo.tradovateapi.com/v1"
 LIVE = "https://live.tradovateapi.com/v1"
 MD = "https://md.tradovateapi.com/v1"
 
+
 def get_auth_token(
     username: str, password: str, device_id: str, cid: str, secret: str
 ) -> Tuple[Optional[str], Optional[datetime]]:
@@ -70,6 +71,39 @@ def get_accounts(access_token: str) -> int:
     data = response.json()
     account_id = data[0]["id"]
     return account_id
+
+
+def get_cash_balance_snapshot(access_token: str, account_id: str) -> Dict:
+    """
+    Get cash balance snapshot from Tradovate API.
+
+    Args:
+        access_token (str): The authentication token for API access
+        account_id (str): The account ID to get the cash balance for
+
+    Returns:
+        dict: JSON response containing cash balance snapshot information
+    """
+    # Set headers
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}",
+    }
+
+    # Set body
+    body = {
+        "accountId": int(account_id),
+    }
+
+    # Make POST request to get cash balance snapshot
+    response = requests.post(
+        f"{DEMO}/account/cashbalancesnapshot",
+        headers=headers,
+        json=body,
+        timeout=5,
+    )
+    # Return JSON data from response
+    return response.json()
 
 
 def get_position(token: str, instrument: str) -> Tuple[int, int, int]:
