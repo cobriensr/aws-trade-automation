@@ -29,5 +29,4 @@ resource "aws_rds_cluster_instance" "trading_db_instances" {
   instance_class      = "db.serverless"
   engine              = aws_rds_cluster.trading_db.engine
   engine_version      = aws_rds_cluster.trading_db.engine_version
-  monitoring_interval = 60
 }
