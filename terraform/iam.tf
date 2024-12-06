@@ -126,3 +126,72 @@ resource "aws_iam_role_policy" "api_gateway_policy" {
     ]
   })
 }
+
+# Create an IAM role for Lambda 2
+resource "aws_iam_role" "lambda2_role" {
+  name = "${local.name_prefix}-lambda2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+# Lambda 2 policy
+resource "aws_iam_role_policy" "lambda2_policy" {
+  name = "${local.name_prefix}-lambda2-policy"
+  role = aws_iam_role.lambda2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "ec2:CreateNetworkInterface",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DeleteNetworkInterface"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach X-Ray policy to Lambda 2
+resource "aws_iam_role_policy_attachment" "lambda2_xray" {
+  role       = aws_iam_role.lambda2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
+# Allow Lambda 2 to access Databento API key from Parameter Store
+resource "aws_iam_role_policy" "lambda2_parameter_store" {
+  name = "databento_parameter_access"
+  role = aws_iam_role.lambda2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter"
+        ]
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/tradovate/DATABENTO_API_KEY"
+      }
+    ]
+  })
+}

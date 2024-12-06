@@ -146,3 +146,31 @@ resource "aws_cloudwatch_log_group" "lambda_logs" {
   name              = "/aws/lambda/${aws_lambda_function.main.function_name}"
   retention_in_days = 7
 }
+
+# Lambda 2 CloudWatch Log Group
+resource "aws_cloudwatch_log_group" "lambda2_logs" {
+  name              = "/aws/lambda/${aws_lambda_function.symbol_lookup.function_name}"
+  retention_in_days = 7
+
+  tags = local.common_tags
+}
+
+# Lambda 2 Error Alarm
+resource "aws_cloudwatch_metric_alarm" "lambda2_errors" {
+  alarm_name          = "${local.name_prefix}-lambda2-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = "60"
+  statistic          = "Sum"
+  threshold          = "0"
+  alarm_description  = "Lambda 2 function errors detected"
+  alarm_actions      = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.symbol_lookup.function_name
+  }
+
+  tags = local.common_tags
+}

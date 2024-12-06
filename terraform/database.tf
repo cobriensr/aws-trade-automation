@@ -23,10 +23,11 @@ resource "aws_rds_cluster" "trading_db" {
 }
 
 resource "aws_rds_cluster_instance" "trading_db_instances" {
-  count              = 1
-  identifier         = "trade-automation-instance-1"
-  cluster_identifier = aws_rds_cluster.trading_db.id
-  instance_class     = "db.serverless"
-  engine             = aws_rds_cluster.trading_db.engine
-  engine_version     = aws_rds_cluster.trading_db.engine_version
+  count               = 1
+  identifier          = "trade-automation-instance-1"
+  cluster_identifier  = aws_rds_cluster.trading_db.id
+  instance_class      = "db.serverless"
+  engine              = aws_rds_cluster.trading_db.engine
+  engine_version      = aws_rds_cluster.trading_db.engine_version
+  monitoring_interval = 60
 }

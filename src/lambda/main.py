@@ -1,4 +1,4 @@
-"""Main Lambda function."""
+"""Main Lambda function for tradingview webhooks."""
 
 import os
 import json
@@ -19,7 +19,6 @@ from trading.oanda import (
 )
 from trading.tradovate import (
     get_auth_token,
-    get_historical_data_dict,
     get_position,
     get_accounts,
     liquidate_position,
@@ -38,9 +37,6 @@ def get_credentials() -> Tuple[str, str, str]:
         ]["Value"]
         account = ssm.get_parameter(
             Name="/tradovate/OANDA_ACCOUNT", WithDecryption=True
-        )["Parameter"]["Value"]
-        api_secret = ssm.get_parameter(
-            Name="/tradovate/DATABENTO_API_KEY", WithDecryption=True
         )["Parameter"]["Value"]
         username = ssm.get_parameter(Name="/tradovate/USERNAME", WithDecryption=True)[
             "Parameter"
@@ -64,7 +60,6 @@ def get_credentials() -> Tuple[str, str, str]:
         return (
             secret,
             account,
-            api_secret,
             username,
             password,
             device_id,
@@ -76,13 +71,33 @@ def get_credentials() -> Tuple[str, str, str]:
         load_dotenv(Path(__file__).parents[2] / ".env")
         secret = os.getenv("OANDA_SECRET")
         account = os.getenv("OANDA_ACCOUNT")
-        api_secret = os.getenv("DATABENTO_API_KEY")
-        if not secret or not account:
+        username = os.getenv("USERNAME")
+        password = os.getenv("PASSWORD")
+        device_id = os.getenv("DEVICE_ID")
+        cid = os.getenv("CID")
+        tradovate_secret = os.getenv("SECRET")
+        if not all([secret, account, username, password, device_id, cid, tradovate_secret]):
             raise ValueError(
                 "Could not load credentials from Parameter Store or .env"
             ) from exc
-        return secret, account, api_secret
+        return secret, account, username, password, device_id, cid, tradovate_secret
 
+# Invoke Lambda 2 for Symbol Lookup
+def invoke_symbol_lookup() -> Dict:
+    """Invoke Lambda 2 to get symbol mapping"""
+    lambda_client = boto3.client('lambda')
+    try:
+        response = lambda_client.invoke(
+            FunctionName=os.environ['LAMBDA2_FUNCTION_NAME'],
+            InvocationType='RequestResponse'
+        )
+        payload = json.loads(response['Payload'].read())
+        if payload.get('statusCode') == 200:
+            return json.loads(payload['body'])
+        raise RuntimeError(f"Symbol lookup failed: {payload.get('body')}")
+    except Exception as exc:
+        logger.error(f"Failed to invoke symbol lookup lambda: {exc}")
+        raise
 
 # Configure logger
 logger = logging.getLogger()
@@ -122,7 +137,6 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     (
         secret,
         account,
-        api_secret,
         username,
         password,
         device_id,
@@ -224,7 +238,7 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
             except Exception as e:
                 print(f"Error getting auth token: {e}")
             # Get the mapping of symbols to instrument names
-            mapping_dict = get_historical_data_dict(api_key=api_secret)
+            mapping_dict = invoke_symbol_lookup()
             # Get the account id
             account = get_accounts(access_token)
             # Get the position for the symbol

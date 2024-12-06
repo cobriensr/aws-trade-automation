@@ -1,55 +1,13 @@
 """Tradovate Utility Functions"""
 
 from typing import Tuple, Optional, Dict
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
-import databento as db
 
 # Set global variables
 DEMO = "https://demo.tradovateapi.com/v1"
 LIVE = "https://live.tradovateapi.com/v1"
 MD = "https://md.tradovateapi.com/v1"
-
-
-def get_historical_data_dict(api_key: str) -> Dict:
-    # Retrieve yesterday's and today's date in the format required by the API
-    today = datetime.now()
-    yesterday = today - timedelta(days=1)
-    data_start = yesterday.strftime("%Y-%m-%d")
-    data_end = today.strftime("%Y-%m-%d")
-
-    # Create a client instance
-    db_client = db.Historical(api_key)
-
-    # Mapping of symbol names to the ones used in the API
-    symbol_mapping = {
-        "MES.n.0": "MES1!",
-        "MNQ.n.0": "MNQ1!",
-        "YM.n.0": "YM1!",
-        "RTY.n.0": "RTY1!",
-        "NG.n.0": "NG1!",
-        "GC.n.0": "GC1!",
-        "CL.n.0": "CL1!",
-    }
-    # Get historical data for the specified symbols
-    df = db_client.timeseries.get_range(
-        dataset="GLBX.MDP3",
-        schema="definition",
-        stype_in="continuous",
-        symbols=list(symbol_mapping.keys()),
-        start=data_start,
-        end=data_end,
-    ).to_df()
-    # Extract the date and symbol columns
-    df["date"] = df.index.date
-    # Pivot the data to have symbols as columns
-    pivoted = df.pivot(index="date", columns="symbol", values="raw_symbol")
-
-    # Get just the latest row and convert to simple dictionary
-    latest_data = pivoted.iloc[-1].to_dict()
-    # Map the symbol names to the ones used in the API
-    return {symbol_mapping[k]: v for k, v in latest_data.items()}
-
 
 def get_auth_token(
     username: str, password: str, device_id: str, cid: str, secret: str
@@ -145,7 +103,7 @@ def get_position(token: str, instrument: str) -> Tuple[int, int, int]:
     return None, None, None
 
 
-def liquidate_position(contract_id: str, account_id: str, token: str) -> dict:
+def liquidate_position(contract_id: str, account_id: str, token: str) -> Dict:
     """
     Liquidate a position for a given contract and account.
 
@@ -174,7 +132,7 @@ def liquidate_position(contract_id: str, account_id: str, token: str) -> dict:
 
 def place_buy_order(
     username: str, instrument: str, account_id: str, quantity: int, token: str
-) -> dict:
+) -> Dict:
     """
     Place a buy order for a given contract and account.
 
@@ -212,7 +170,7 @@ def place_buy_order(
 
 def place_sell_order(
     username: str, instrument: str, account_id: str, quantity: int, token: str
-) -> dict:
+) -> Dict:
     """
     Place a sell order for a given contract and account.
 

@@ -1,12 +1,11 @@
-name: Deploy Lambda
+name: Deploy Lambdas
 
 on:
   push:
     branches: [ main ]
     paths:
-      - 'src/lambda/**'
-      - 'requirements.txt'
-      - 'src/lambda/requirements.txt'
+      - 'src/lambda1/**'
+      - 'src/lambda2/**'
       - 'terraform/**'
   workflow_dispatch:
 
@@ -42,47 +41,27 @@ jobs:
         role-skip-session-tagging: true
         mask-aws-account-id: true
 
-    - name: Verify Lambda Layer
-      run: |
-        LATEST_VERSION=$(aws lambda list-layer-versions \
-          --layer-name databento-layer \
-          --query 'LayerVersions[0].Version' \
-          --output text || echo "")
-        CURRENT_VERSION=$(aws lambda get-function \
-          --function-name trading-prod-function \
-          --query 'Configuration.Layers[0].Arn' \
-          --output text | cut -d':' -f8)
-        LAYER_CHECK=$(aws lambda get-layer-version-by-arn \
-          --arn "arn:aws:lambda:us-east-1:565625954376:layer:databento-layer:$LATEST_VERSION" \
-          --query 'LayerVersionArn' \
-          --output text || echo "")
-        if [ -z "$LAYER_CHECK" ]; then
-          echo "❌ Databento layer not found! Please ensure the layer is created first."
-          exit 1
-        else
-          echo "✅ Databento layer found: $LAYER_CHECK"
-          echo "ℹ️ Latest version is: $LATEST_VERSION"
-          echo "ℹ️ Lambda function is using version: $CURRENT_VERSION"
-        fi
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
 
-    - name: Install dependencies and create Lambda package
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and package Lambda 1
       run: |
-        pip install -r requirements-lambda.txt --target ./src/lambda
-        cd src/lambda
-        # Remove tests
-        find . -type d -name "tests" -exec rm -rf {} +
-        # Remove examples
-        find . -type d -name "examples" -exec rm -rf {} +
-        # Remove dist info
-        find . -type d -name "*.dist-info" -exec rm -rf {} +
-        # Remove cache files
-        find . -name "*.pyc" -delete
-        find . -name "*.pyo" -delete
-        find . -name "*.dist-info" -exec rm -rf {} +
-        find . -name "__pycache__" -exec rm -rf {} +
-        # Zip remaining files
+        pip install -r requirements-lambda.txt --target ./src/lambda1
+        cd src/lambda1
         zip -r ../../terraform/lambda_function.zip ./*
         aws s3 cp ../../terraform/lambda_function.zip s3://trading-lambda-deployment/lambda_function.zip
+
+    - name: Build and package Lambda 2
+      run: |
+        cd src/lambda2
+        docker buildx build --platform linux/amd64 -t lambda2-build .
+        docker create --name lambda2-container lambda2-build
+        docker cp lambda2-container:/lambda2_function.zip ../../terraform/
+        docker rm lambda2-container
+        aws s3 cp ../../terraform/lambda2_function.zip s3://trading-lambda-deployment/lambda2_function.zip
 
     - name: Setup Terraform Plugin Cache
       run: |
@@ -127,9 +106,14 @@ jobs:
           exit 1
         fi
 
-    - name: Update Lambda function
+    - name: Update Lambda functions
       run: |
         aws lambda update-function-code \
           --function-name trading-prod-function \
           --s3-bucket trading-lambda-deployment \
           --s3-key lambda_function.zip
+
+        aws lambda update-function-code \
+          --function-name trading-prod-symbol-lookup \
+          --s3-bucket trading-lambda-deployment \
+          --s3-key lambda2_function.zip
