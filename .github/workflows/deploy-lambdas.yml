@@ -57,7 +57,7 @@ jobs:
     - name: Build and package Lambda 2
       run: |
         cd src/lambda2
-        docker buildx build --platform linux/amd64 -t lambda2-build .
+        docker buildx build --platform linux/amd64 --load -t lambda2-build .
         docker create --name lambda2-container lambda2-build
         docker cp lambda2-container:/lambda2_function.zip ../../terraform/
         docker rm lambda2-container
