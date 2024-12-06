@@ -49,7 +49,7 @@ jobs:
 
     - name: Build and package Lambda 1
       run: |
-        pip install -r requirements-lambda.txt --target ./src/lambda
+        pip install -r src/lambda/requirements-lambda.txt --target ./src/lambda
         cd src/lambda
         zip -r ../../terraform/lambda_function.zip ./*
         aws s3 cp ../../terraform/lambda_function.zip s3://trading-lambda-deployment/lambda_function.zip
