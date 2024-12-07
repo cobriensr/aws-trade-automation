@@ -75,12 +75,6 @@ resource "aws_apigatewayv2_route" "oandastatus" {
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
-resource "aws_apigatewayv2_route" "tradovateaccounts" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "GET /tradovateaccounts"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
-}
-
 resource "aws_apigatewayv2_route" "tradovatestatus" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "GET /tradovatestatus"
