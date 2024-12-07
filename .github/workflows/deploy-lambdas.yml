@@ -83,7 +83,8 @@ jobs:
       run: |
         terraform init
         terraform validate
-        terraform plan --refresh-only -detailed-exitcode -lock=false | tee plan_output.txt
+        terraform refresh
+        terraform plan -detailed-exitcode -lock=false | tee plan_output.txt
         PLAN_EXIT_CODE=$?
 
         if [ $PLAN_EXIT_CODE -eq 2 ]; then
