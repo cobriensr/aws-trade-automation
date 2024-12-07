@@ -1,8 +1,14 @@
 """Tradovate Utility Functions"""
 
+import logging
 from typing import Tuple, Optional, Dict
 from datetime import datetime
 import requests
+
+# Configure logger
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)  # Set to DEBUG for development, INFO for production
+
 
 # Set global variables
 DEMO = "https://demo.tradovateapi.com/v1"
@@ -95,15 +101,31 @@ def get_cash_balance_snapshot(access_token: str, account_id: str) -> Dict:
         "accountId": int(account_id),
     }
 
-    # Make POST request to get cash balance snapshot
-    response = requests.post(
-        f"{DEMO}/account/cashbalancesnapshot",
-        headers=headers,
-        json=body,
-        timeout=5,
-    )
-    # Return JSON data from response
-    return response.json()
+    try:
+        # Make POST request to get cash balance snapshot
+        response = requests.post(
+            f"{DEMO}/account/getCashBalanceSnapshot",
+            headers=headers,
+            json=body,
+            timeout=5,
+        )
+        
+        # Check if request was successful
+        response.raise_for_status()
+        
+        # Try to parse JSON response
+        return response.json()
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP Error: {e}, Response: {response.text}")
+        if response.status_code == 404:
+            return {"error": "Endpoint not found. Please verify the API endpoint path."}
+        return {"error": f"HTTP Error: {response.status_code}"}
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request Error: {e}")
+        return {"error": f"Request failed: {str(e)}"}
+    except ValueError as e:
+        logger.error(f"JSON Decode Error: {e}")
+        return {"error": "Could not parse response from server"}
 
 
 def get_position(token: str, instrument: str) -> Tuple[int, int, int]:
