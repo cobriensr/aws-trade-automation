@@ -14,19 +14,19 @@ resource "aws_rds_cluster" "trading_db" {
   enabled_cloudwatch_logs_exports = ["postgresql"]
   copy_tags_to_snapshot           = true
   enable_http_endpoint            = false
-  skip_final_snapshot            = true
+  skip_final_snapshot             = true
   serverlessv2_scaling_configuration {
     min_capacity = 0.5
     max_capacity = 2
   }
-  performance_insights_enabled    = false
+  performance_insights_enabled = false
 }
 
 resource "aws_rds_cluster_instance" "trading_db_instances" {
-  count               = 1
-  identifier          = "trade-automation-instance-1"
-  cluster_identifier  = aws_rds_cluster.trading_db.id
-  instance_class      = "db.serverless"
-  engine              = aws_rds_cluster.trading_db.engine
-  engine_version      = aws_rds_cluster.trading_db.engine_version
+  count              = 1
+  identifier         = "trade-automation-instance-1"
+  cluster_identifier = aws_rds_cluster.trading_db.id
+  instance_class     = "db.serverless"
+  engine             = aws_rds_cluster.trading_db.engine
+  engine_version     = aws_rds_cluster.trading_db.engine_version
 }
