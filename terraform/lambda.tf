@@ -65,3 +65,34 @@ resource "aws_lambda_function" "symbol_lookup" {
 
   tags = local.common_tags
 }
+
+# Lambda 3 (Coinbase)
+resource "aws_lambda_function" "coinbase" {
+  s3_bucket     = aws_s3_bucket.lambda_deployment.id
+  s3_key        = "lambda3_function.zip"
+  function_name = "${local.name_prefix}-coinbase"
+  role          = aws_iam_role.lambda2_role.arn
+  handler       = "main.lambda_handler"
+  runtime       = "python3.12"
+  timeout       = 30
+  memory_size   = 1024
+
+  environment {
+    variables = {
+      FUNCTION_NAME         = "${local.name_prefix}-coinbase"
+      COINBASE_API_KEY_NAME = "${data.aws_ssm_parameter.coinbase_api_key_name.value}"
+      COINBASE_PRIVATE_KEY  = "${data.aws_ssm_parameter.coinbase_private_key.value}"
+    }
+  }
+
+  vpc_config {
+    subnet_ids         = values(aws_subnet.private)[*].id
+    security_group_ids = [aws_security_group.lambda.id, "sg-0f10a7b30f99f2156"]
+  }
+
+  tracing_config {
+    mode = "Active"
+  }
+
+  tags = local.common_tags
+}

@@ -1,4 +1,4 @@
 boto3
 python-dotenv
 aws-lambda-typing
-databento
+coinbase-advanced-py

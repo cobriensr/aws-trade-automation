@@ -63,6 +63,15 @@ jobs:
         docker rm lambda2-container
         aws s3 cp ../../terraform/lambda2_function.zip s3://trading-lambda-deployment/lambda2_function.zip
 
+    - name: Build and package Lambda 3
+      run: |
+        cd src/lambda3
+        docker buildx build --platform linux/amd64 --load -t lambda3-build .
+        docker create --name lambda3-container lambda3-build
+        docker cp lambda3-container:/lambda3_function.zip ../../terraform/
+        docker rm lambda3-container
+        aws s3 cp ../../terraform/lambda3_function.zip s3://trading-lambda-deployment/lambda3_function.zip
+
     - name: Setup Terraform Plugin Cache
       run: |
         mkdir -p ~/.terraform.d/plugin-cache

@@ -40,3 +40,11 @@ data "aws_ssm_parameter" "tradovate_secret" {
 data "aws_ssm_parameter" "databento_key" {
   name = "/tradovate/DATABENTO_API_KEY"
 }
+
+data "aws_ssm_parameter" "coinbase_api_key_name" {
+  name = "/tradovate/COINBASE_API_KEY_NAME"
+}
+
+data "aws_ssm_parameter" "coinbase_private_key" {
+  name = "/tradovate/COINBASE_PRIVATE_KEY"
+}

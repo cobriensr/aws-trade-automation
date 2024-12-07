@@ -274,3 +274,131 @@ resource "aws_cloudwatch_metric_alarm" "lambda2_concurrent_executions" {
 
   tags = local.common_tags
 }
+
+# Lambda 3 CloudWatch Log Group
+resource "aws_cloudwatch_log_group" "lambda3_logs" {
+  name              = "/aws/lambda/${aws_lambda_function.coinbase.function_name}"
+  retention_in_days = 7
+
+  tags = local.common_tags
+}
+
+# Lambda 3 Error Alarm
+resource "aws_cloudwatch_metric_alarm" "lambda3_errors" {
+  alarm_name          = "${local.name_prefix}-lambda3-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = "60"
+  statistic           = "Sum"
+  threshold           = "0"
+  alarm_description   = "Lambda 3 function errors detected"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.symbol_lookup.function_name
+  }
+
+  tags = local.common_tags
+}
+
+# Lambda 3 Throttling Alarm
+resource "aws_cloudwatch_metric_alarm" "lambda3_throttles" {
+  alarm_name          = "${local.name_prefix}-lambda3-throttles"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "Throttles"
+  namespace           = "AWS/Lambda"
+  period              = "60"
+  statistic           = "Sum"
+  threshold           = "0"
+  alarm_description   = "Lambda 3 (Symbol Lookup) function is being throttled"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.symbol_lookup.function_name
+  }
+
+  tags = local.common_tags
+}
+
+# Lambda 3 High Latency Alert
+resource "aws_cloudwatch_metric_alarm" "lambda3_duration" {
+  alarm_name          = "${local.name_prefix}-lambda3-high-latency"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "Duration"
+  namespace           = "AWS/Lambda"
+  period              = "60"
+  statistic           = "Average"
+  threshold           = "5000" # 5 seconds
+  alarm_description   = "Lambda 3 (Symbol Lookup) taking too long to execute"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.symbol_lookup.function_name
+  }
+
+  tags = local.common_tags
+}
+
+# Lambda 3 Memory Usage Alert
+resource "aws_cloudwatch_metric_alarm" "lambda3_memory" {
+  alarm_name          = "${local.name_prefix}-lambda3-memory-usage"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "MaxMemoryUsed"
+  namespace           = "AWS/Lambda"
+  period              = "60"
+  statistic           = "Maximum"
+  threshold           = "819" # 80% of 1024MB
+  alarm_description   = "Lambda 3 (Symbol Lookup) approaching memory limit"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.symbol_lookup.function_name
+  }
+
+  tags = local.common_tags
+}
+
+# Lambda 3 Invocation Error Rate
+resource "aws_cloudwatch_metric_alarm" "lambda3_error_rate" {
+  alarm_name          = "${local.name_prefix}-lambda3-error-rate"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "ErrorRate"
+  namespace           = "AWS/Lambda"
+  period              = "300" # 5 minutes
+  statistic           = "Average"
+  threshold           = "5" # 5% error rate
+  alarm_description   = "Lambda 3 (Symbol Lookup) error rate exceeds 5%"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.symbol_lookup.function_name
+  }
+
+  tags = local.common_tags
+}
+
+# Lambda 3 Concurrent Executions
+resource "aws_cloudwatch_metric_alarm" "lambda3_concurrent_executions" {
+  alarm_name          = "${local.name_prefix}-lambda3-concurrent-executions"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "ConcurrentExecutions"
+  namespace           = "AWS/Lambda"
+  period              = "60"
+  statistic           = "Maximum"
+  threshold           = "50" # Adjust based on your expected load
+  alarm_description   = "Lambda 3 (Symbol Lookup) concurrent executions exceeding threshold"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.symbol_lookup.function_name
+  }
+
+  tags = local.common_tags
+}
