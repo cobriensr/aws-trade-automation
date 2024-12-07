@@ -104,7 +104,7 @@ def get_cash_balance_snapshot(access_token: str, account_id: str) -> Dict:
     try:
         # Make POST request to get cash balance snapshot
         response = requests.post(
-            f"{DEMO}/account/getCashBalanceSnapshot",
+            f"{DEMO}/cashBalance/getCashBalanceSnapshot",
             headers=headers,
             json=body,
             timeout=5,
