@@ -109,12 +109,17 @@ def get_cash_balance_snapshot(access_token: str, account_id: str) -> Dict:
             json=body,
             timeout=5,
         )
-        
-        # Check if request was successful
+        # check for HTTP error
         response.raise_for_status()
-        
-        # Try to parse JSON response
-        return response.json()
+        # Return JSON data from response
+        data = response.json()
+        # Replace "NaN" values with 0
+        for key, value in data.items():
+            if value == "NaN":
+                data[key] = 0.0
+        # Return the data
+        return data
+
     except requests.exceptions.HTTPError as e:
         logger.error(f"HTTP Error: {e}, Response: {response.text}")
         if response.status_code == 404:
