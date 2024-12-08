@@ -17,14 +17,14 @@ RUN pip install --target . --no-cache-dir -r requirements.txt && \
     find . -type d -name "tests" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "test" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "*test*" -not -path "*/botocore/*" -exec rm -rf {} + && \
-    find . -type d -name "examples" -exec rm -rf {} + && \
-    find . -type d -name "*.dist-info" -exec rm -rf {} + && \
+    find . -type d -name "examples"-not -path "*/botocore/*" -exec rm -rf {} + && \
+    find . -type d -name "*.dist-info" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "docs" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "doc" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "*docs*" -not -path "*/botocore/*" -exec rm -rf {} + && \
-    find . -type d -name "documentation" -exec rm -rf {} + && \
-    find . -type d -name "locale" -exec rm -rf {} + && \
-    find . -type d -name "locales" -exec rm -rf {} + && \
+    find . -type d -name "documentation" -not -path "*/botocore/*" -exec rm -rf {} + && \
+    find . -type d -name "locale" -not -path "*/botocore/*" -exec rm -rf {} + && \
+    find . -type d -name "locales" -not -path "*/botocore/*" -exec rm -rf {} + && \
     # Remove development files
     find . -name "*.c" -delete && \
     find . -name "*.h" -delete && \
