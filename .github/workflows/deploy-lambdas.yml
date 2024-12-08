@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/lambda/**'
       - 'src/lambda2/**'
+      - 'src/lambda3/**'
       - 'terraform/**'
   workflow_dispatch:
 
