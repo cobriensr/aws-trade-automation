@@ -16,7 +16,7 @@ RUN pip install --target . --no-cache-dir -r requirements.txt && \
     find . -type d -name "tests" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "test" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "*test*" -not -path "*/botocore/*" -exec rm -rf {} + && \
-    find . -type d -name "examples"-not -path "*/botocore/*" -exec rm -rf {} + && \
+    find . -type d -name "examples" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "*.dist-info" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "docs" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "doc" -not -path "*/botocore/*" -exec rm -rf {} + && \
@@ -25,40 +25,40 @@ RUN pip install --target . --no-cache-dir -r requirements.txt && \
     find . -type d -name "locale" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "locales" -not -path "*/botocore/*" -exec rm -rf {} + && \
     # Remove development files
-    find . -name "*.c" -delete && \
-    find . -name "*.h" -delete && \
-    find . -name "*.pxd" -delete && \
-    find . -name "*.pyx" -delete && \
-    find . -name "*.so.*" -delete && \
-    find . -name "*.pyi" -delete && \
-    find . -name "*.pyc" -delete && \
-    find . -name "*.pyo" -delete && \
-    find . -name "*.egg-info" -exec rm -rf {} + && \
+    find . -name "*.c" -not -path "*/botocore/*" -delete && \
+    find . -name "*.h" -not -path "*/botocore/*" -delete && \
+    find . -name "*.pxd" -not -path "*/botocore/*" -delete && \
+    find . -name "*.pyx" -not -path "*/botocore/*" -delete && \
+    find . -name "*.so.*" -not -path "*/botocore/*" -delete && \
+    find . -name "*.pyi" -not -path "*/botocore/*" -delete && \
+    find . -name "*.pyc" -not -path "*/botocore/*" -delete && \
+    find . -name "*.pyo" -not -path "*/botocore/*" -delete && \
+    find . -name "*.egg-info" -not -path "*/botocore/*" -exec rm -rf {} + && \
     # Remove documentation files
-    find . -name "README*" -delete && \
-    find . -name "readme*" -delete && \
-    find . -name "CHANGELOG*" -delete && \
-    find . -name "AUTHORS*" -delete && \
-    find . -name "CONTRIBUTING*" -delete && \
-    find . -name "LICENSE*" -delete && \
-    find . -name "*.md" -delete && \
-    find . -name "*.rst" -delete && \
+    find . -name "README*" -not -path "*/botocore/*" -delete && \
+    find . -name "readme*" -not -path "*/botocore/*" -delete && \
+    find . -name "CHANGELOG*" -not -path "*/botocore/*" -delete && \
+    find . -name "AUTHORS*" -not -path "*/botocore/*" -delete && \
+    find . -name "CONTRIBUTING*" -not -path "*/botocore/*" -delete && \
+    find . -name "LICENSE*" -not -path "*/botocore/*" -delete && \
+    find . -name "*.md" -not -path "*/botocore/*" -delete && \
+    find . -name "*.rst" -not -path "*/botocore/*" -delete && \
     # Remove cache and build artifacts
-    find . -name "__pycache__" -exec rm -rf {} + && \
+    find . -name "__pycache__" -not -path "*/botocore/*" -exec rm -rf {} + && \
     # Remove data files
-    find . -name "*.csv" -delete && \
-    find . -name "*.json" -delete && \
-    find . -name "*.yaml" -delete && \
-    find . -name "*.xml" -delete && \
-    find . -name "*.ipynb" -delete && \
-    find . -name "sample*" -delete && \
-    find . -name "example*" -delete && \
-    find . -name "dataset*" -delete && \
-    find . -name "*.pkl" -delete && \
+    find . -name "*.csv" -not -path "*/botocore/*" -delete && \
+    find . -name "*.json" -not -path "*/botocore/*" -delete && \
+    find . -name "*.yaml" -not -path "*/botocore/*" -delete && \
+    find . -name "*.xml" -not -path "*/botocore/*" -delete && \
+    find . -name "*.ipynb" -not -path "*/botocore/*" -delete && \
+    find . -name "sample*" -not -path "*/botocore/*" -delete && \
+    find . -name "example*" -not -path "*/botocore/*" -delete && \
+    find . -name "dataset*" -not -path "*/botocore/*" -delete && \
+    find . -name "*.pkl" -not -path "*/botocore/*" -delete && \
     # Remove specific large package components
-    find . -type d -name "pandas/tests" -exec rm -rf {} + && \
-    find . -type d -name "numpy/tests" -exec rm -rf {} + && \
-    find . -type d -name "numpy/doc" -exec rm -rf {} +
+    find . -type d -name "pandas/tests" -not -path "*/botocore/*" -exec rm -rf {} + && \
+    find . -type d -name "numpy/tests" -not -path "*/botocore/*" -exec rm -rf {} + && \
+    find . -type d -name "numpy/doc" -not -path "*/botocore/*" -exec rm -rf {} +
 
 # Create deployment package
 RUN zip -r /lambda2_function.zip .
