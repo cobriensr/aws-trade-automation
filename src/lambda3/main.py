@@ -189,6 +189,18 @@ def place_order(client: RESTClient, order_type: str, symbol: str, size: float) -
             "details": str(e)
         }
 
+def list_accounts(api_key: str, api_secret: str) -> str:
+    """List Coinbase accounts with error handling"""
+    try:
+        client = RESTClient(api_key=api_key, api_secret=api_secret)
+        accounts = client.get_accounts(
+            limit=1,
+        )
+        return accounts['accounts'][0]
+    except Exception as e:
+        logger.error(f"Failed to list accounts: {str(e)}")
+        raise CoinbaseError("Failed to list accounts") from e
+
 def place_buy_order(api_key: str, api_secret: str, symbol: str) -> Dict:
     """Place buy order with validation and metrics"""
     try:
@@ -403,10 +415,33 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
     """Enhanced Lambda handler with comprehensive error handling and metrics"""
     request_id = context.aws_request_id
     start_time = time.time()
-    
+
     try:
         configure_logger(context)
         logger.info(f"Processing request {request_id}")
+        
+        # Extract path and handle different endpoints
+        path = event.get("rawPath", event.get("path", ""))
+        logger.info(f"Request path: {path}")
+        
+        # Get credentials
+        try:
+            api_key, api_secret = get_api_key()
+        except Exception as e:
+            publish_metric('credentials_error')
+            return {
+                "statusCode": 500,
+                "body": json.dumps({
+                    "error": "Failed to retrieve credentials",
+                    "details": str(e),
+                    "request_id": request_id
+                })
+            }
+        
+        if path.endswith("/coinbasestatus"):
+            account_info = list_accounts(api_key, api_secret)
+            response = {"statusCode": 200, "body": json.dumps(account_info)}
+            return response
         
         # Validate webhook data
         try:
@@ -419,20 +454,6 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
                 "statusCode": 400,
                 "body": json.dumps({
                     "error": "Invalid webhook data",
-                    "details": str(e),
-                    "request_id": request_id
-                })
-            }
-            
-        # Get credentials
-        try:
-            api_key, api_secret = get_api_key()
-        except Exception as e:
-            publish_metric('credentials_error')
-            return {
-                "statusCode": 500,
-                "body": json.dumps({
-                    "error": "Failed to retrieve credentials",
                     "details": str(e),
                     "request_id": request_id
                 })
