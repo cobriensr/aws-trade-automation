@@ -3,120 +3,251 @@
 import os
 import json
 import logging
+import time
+import traceback
 from typing import Dict
 from pathlib import Path
-from datetime import datetime, timedelta
-from dotenv import load_dotenv
+from datetime import datetime, timedelta, timezone
+from botocore.exceptions import ClientError
+import psutil
 import boto3
 import databento as db
+from dotenv import load_dotenv
 from aws_lambda_typing.events import APIGatewayProxyEventV2
 from aws_lambda_typing.context import Context
 
 # Configure logger
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
+
+# Initialize AWS clients
+cloudwatch = boto3.client('cloudwatch')
+ssm = boto3.client("ssm")
+
+class SymbolLookupError(Exception):
+    """Custom exception for symbol lookup errors"""
+
+def publish_metric(name: str, value: float = 1, unit: str = 'Count') -> None:
+    """Publish a metric to CloudWatch"""
+    try:
+        cloudwatch.put_metric_data(
+            Namespace='Trading/SymbolLookup',
+            MetricData=[{
+                'MetricName': name,
+                'Value': value,
+                'Unit': unit,
+                'Timestamp': datetime.now(timezone.utc)
+            }]
+        )
+    except Exception as e:
+        logger.error(f"Failed to publish metric {name}: {str(e)}")
 
 def configure_logger(context: Context) -> None:
-    """Configure logger with Lambda context information"""
+    """Configure logger with enhanced Lambda context information"""
     formatter = logging.Formatter(
         "[%(levelname)s] %(asctime)s.%(msecs)03d "
         f"RequestId: {context.aws_request_id} "
         "%(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    
+
     logger.handlers.clear()
     log_handler = logging.StreamHandler()
     log_handler.setFormatter(formatter)
     logger.addHandler(log_handler)
-    
+
     logger.info(f"Log Group: {context.log_group_name}")
     logger.info(f"Log Stream: {context.log_stream_name}")
+    logger.info(f"Function Memory: {context.memory_limit_in_mb}MB")
+    logger.info(f"Remaining Time: {context.get_remaining_time_in_millis()}ms")
 
 def get_api_key() -> str:
-    """Get Databento API key from Parameter Store"""
+    """Get Databento API key with enhanced error handling"""
     try:
-        ssm = boto3.client("ssm")
-        api_key = ssm.get_parameter(
+        response = ssm.get_parameter(
             Name="/tradovate/DATABENTO_API_KEY",
             WithDecryption=True
-        )["Parameter"]["Value"]
+        )
+        api_key = response["Parameter"]["Value"]
+        publish_metric('api_key_retrieval_success')
         return api_key
-    except Exception as exc:
-        # If Parameter Store fails, try local .env (development)
+        
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+        logger.error(f"AWS SSM error retrieving API key: {error_code} - {str(e)}")
+        publish_metric('api_key_retrieval_error')
+        
+        # Fall back to local development environment
+        logger.info("Attempting fallback to local .env file")
         load_dotenv(Path(__file__).parents[2] / ".env")
         api_key = os.getenv("DATABENTO_API_KEY")
+        
         if not api_key:
-            raise ValueError(
-                "Could not load credentials from Parameter Store or .env"
-            ) from exc
+            raise SymbolLookupError("Failed to retrieve Databento API key from all sources") from e
+            
         return api_key
+        
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving API key: {str(e)}")
+        publish_metric('api_key_retrieval_error')
+        raise SymbolLookupError(f"API key retrieval failed: {str(e)}") from e
 
 def get_historical_data_dict(api_key: str) -> Dict:
-    """Get historical data and return symbol mapping dictionary"""
-    # Retrieve yesterday's and today's date in the format required by the API
-    today = datetime.now()
-    yesterday = today - timedelta(days=1)
-    data_start = yesterday.strftime("%Y-%m-%d")
-    data_end = today.strftime("%Y-%m-%d")
-
-    # Create a client instance
-    db_client = db.Historical(api_key)
-
-    # Mapping of symbol names to the ones used in the API
-    symbol_mapping = {
-        "MES.n.0": "MES1!",
-        "MNQ.n.0": "MNQ1!",
-        "YM.n.0": "YM1!",
-        "RTY.n.0": "RTY1!",
-        "NG.n.0": "NG1!",
-        "GC.n.0": "GC1!",
-        "CL.n.0": "CL1!",
-    }
+    """Get historical data with comprehensive error handling and metrics"""
+    start_time = time.time()
     
     try:
-        # Get historical data for the specified symbols
-        df = db_client.timeseries.get_range(
-            dataset="GLBX.MDP3",
-            schema="definition",
-            stype_in="continuous",
-            symbols=list(symbol_mapping.keys()),
-            start=data_start,
-            end=data_end,
-        ).to_df()
+        # Get date range
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        data_start = yesterday.strftime("%Y-%m-%d")
+        data_end = today.strftime("%Y-%m-%d")
         
-        # Extract the date and symbol columns
-        df["date"] = df.index.date
-        # Pivot the data to have symbols as columns
-        pivoted = df.pivot(index="date", columns="symbol", values="raw_symbol")
+        logger.info(f"Fetching data for range: {data_start} to {data_end}")
 
-        # Get just the latest row and convert to simple dictionary
+        # Symbol mapping with versioning
+        symbol_mapping = {
+            "MES.n.0": "MES1!",  # E-Mini S&P 500
+            "MNQ.n.0": "MNQ1!",  # E-Mini NASDAQ 100
+            "YM.n.0": "YM1!",    # E-Mini Dow
+            "RTY.n.0": "RTY1!",  # E-Mini Russell 2000
+            "NG.n.0": "NG1!",    # Natural Gas
+            "GC.n.0": "GC1!",    # Gold
+            "CL.n.0": "CL1!",    # Crude Oil
+        }
+
+        # Initialize Databento client with timeout handling
+        db_client = db.Historical(api_key)
+        
+        try:
+            # Get historical data
+            df = db_client.timeseries.get_range(
+                dataset="GLBX.MDP3",
+                schema="definition",
+                stype_in="continuous",
+                symbols=list(symbol_mapping.keys()),
+                start=data_start,
+                end=data_end,
+            ).to_df()
+        except db.BentoServerError as e:
+            publish_metric('databento_server_error')
+            logger.error(f"Databento server error: {str(e)}")
+            logger.error(f"Request ID: {e.request_id}")
+            raise SymbolLookupError(f"Databento server error: {str(e)}") from e
+        except db.BentoClientError as e:
+            publish_metric('databento_client_error')
+            logger.error(f"Databento client error: {str(e)}")
+            logger.error(f"Request ID: {e.request_id}")
+            raise SymbolLookupError(f"Databento client error: {str(e)}") from e
+        except db.BentoError as e:
+            publish_metric('databento_general_error')
+            logger.error(f"Databento error: {str(e)}")
+            raise SymbolLookupError(f"Databento error: {str(e)}") from e
+
+        if df.empty:
+            raise SymbolLookupError("No data returned from Databento API")
+
+        # Process the data
+        df["date"] = df.index.date
+        pivoted = df.pivot(index="date", columns="symbol", values="raw_symbol")
+        
+        if pivoted.empty:
+            raise SymbolLookupError("Failed to process symbol data")
+            
+        # Get latest data and map symbols
         latest_data = pivoted.iloc[-1].to_dict()
-        # Map the symbol names to the ones used in the API
-        return {symbol_mapping[k]: v for k, v in latest_data.items()}
-    except Exception as exc:
-        logger.error(f"Failed to get historical data: {exc}")
-        raise
+        result = {symbol_mapping[k]: v for k, v in latest_data.items()}
+        
+        # Validate result
+        if not result:
+            raise SymbolLookupError("No symbols mapped in result")
+            
+        # Record success metrics
+        duration = (time.time() - start_time) * 1000
+        publish_metric('databento_request_duration', duration, 'Milliseconds')
+        publish_metric('databento_request_success')
+        publish_metric('symbols_mapped', len(result))
+        
+        logger.info(f"Successfully mapped {len(result)} symbols")
+        return result
+        
+    except Exception as e:
+        publish_metric('symbol_lookup_error')
+        logger.error(f"Symbol lookup error: {str(e)}")
+        logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
+        raise SymbolLookupError(f"Failed to get historical data: {str(e)}") from e
 
 def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
-    """Lambda handler for symbol lookup."""
-    configure_logger(context)
-    logger.debug(f"Received event: {json.dumps(event, indent=2)}")
+    """Lambda handler with comprehensive error handling and monitoring"""
+    request_id = context.aws_request_id
+    start_time = time.time()
     
     try:
-        # Get API key from Parameter Store
+        # Configure logging
+        configure_logger(context)
+        logger.info(f"Processing request {request_id}")
+        logger.debug(f"Event: {json.dumps(event, indent=2)}")
+
+        # Get API key
         api_key = get_api_key()
         
         # Get symbol mapping
         symbol_mapping = get_historical_data_dict(api_key)
         
+        # Record success response
         return {
             "statusCode": 200,
-            "body": json.dumps(symbol_mapping)
+            "body": json.dumps({
+                "status": "success",
+                "data": symbol_mapping,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
         }
-    except Exception as exc:
-        logger.error(f"Error processing request: {exc}")
+        
+    except SymbolLookupError as e:
+        logger.error(f"Symbol lookup error in request {request_id}: {str(e)}")
+        return {
+            "statusCode": 400,
+            "body": json.dumps({
+                "status": "error",
+                "error": str(e),
+                "request_id": request_id
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in request {request_id}: {str(e)}")
+        logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
         return {
             "statusCode": 500,
-            "body": json.dumps({"error": str(exc)})
+            "body": json.dumps({
+                "status": "error",
+                "error": "Internal server error",
+                "request_id": request_id
+            })
         }
+        
+    finally:
+        # Calculate and record duration
+        duration = (time.time() - start_time) * 1000
+        publish_metric('request_duration', duration, 'Milliseconds')
+        
+        # Log request completion
+        log_message = f"Request {request_id} completed in {duration:.2f}ms"
+        if duration > 5000:
+            logger.warning(f"{log_message} - Request took longer than 5 seconds")
+        else:
+            logger.info(log_message)
+        
+        # Monitor resources
+        remaining_time = context.get_remaining_time_in_millis()
+        if remaining_time < 1000:
+            logger.warning(f"Low remaining execution time: {remaining_time}ms")
+            
+        try:
+            memory_used = psutil.Process().memory_info().rss / 1024 / 1024
+            publish_metric('memory_used', memory_used, 'Megabytes')
+            if memory_used > context.memory_limit_in_mb * 0.9:
+                logger.warning(f"High memory usage: {memory_used:.2f}MB")
+        except ImportError:
+            logger.warning("psutil not available - memory monitoring disabled")

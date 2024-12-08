@@ -37,10 +37,17 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "ec2:CreateNetworkInterface",
           "ec2:DescribeNetworkInterfaces",
           "ec2:DeleteNetworkInterface",
-          "secretsmanager:GetSecretValue",
-          "lambda:InvokeFunction"
+          "secretsmanager:GetSecretValue"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = ["lambda:InvokeFunction"]
+        Resource = [
+          aws_lambda_function.symbol_lookup.arn,
+          aws_lambda_function.coinbase.arn
+        ]
       }
     ]
   })

@@ -275,6 +275,22 @@ resource "aws_cloudwatch_metric_alarm" "lambda2_concurrent_executions" {
   tags = local.common_tags
 }
 
+# Monitor Lambda2 invocation failures
+resource "aws_cloudwatch_metric_alarm" "lambda2_invocation_failures" {
+  alarm_name          = "${local.name_prefix}-lambda2-invocation-failures"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "SymbolLookupInvocationError"
+  namespace           = "Trading/Custom"
+  period              = "60"
+  statistic           = "Sum"
+  threshold           = "0"
+  alarm_description   = "Failures invoking Symbol Lookup Lambda"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  tags = local.common_tags
+}
+
 # Lambda 3 CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "lambda3_logs" {
   name              = "/aws/lambda/${aws_lambda_function.coinbase.function_name}"
@@ -297,7 +313,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda3_errors" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
-    FunctionName = aws_lambda_function.symbol_lookup.function_name
+    FunctionName = aws_lambda_function.coinbase.function_name
   }
 
   tags = local.common_tags
@@ -317,7 +333,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda3_throttles" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
-    FunctionName = aws_lambda_function.symbol_lookup.function_name
+    FunctionName = aws_lambda_function.coinbase.function_name
   }
 
   tags = local.common_tags
@@ -337,7 +353,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda3_duration" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
-    FunctionName = aws_lambda_function.symbol_lookup.function_name
+    FunctionName = aws_lambda_function.coinbase.function_name
   }
 
   tags = local.common_tags
@@ -357,7 +373,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda3_memory" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
-    FunctionName = aws_lambda_function.symbol_lookup.function_name
+    FunctionName = aws_lambda_function.coinbase.function_name
   }
 
   tags = local.common_tags
@@ -377,7 +393,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda3_error_rate" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
-    FunctionName = aws_lambda_function.symbol_lookup.function_name
+    FunctionName = aws_lambda_function.coinbase.function_name
   }
 
   tags = local.common_tags
@@ -397,8 +413,24 @@ resource "aws_cloudwatch_metric_alarm" "lambda3_concurrent_executions" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
-    FunctionName = aws_lambda_function.symbol_lookup.function_name
+    FunctionName = aws_lambda_function.coinbase.function_name
   }
+
+  tags = local.common_tags
+}
+
+# Monitor Lambda3 invocation failures
+resource "aws_cloudwatch_metric_alarm" "lambda3_invocation_failures" {
+  alarm_name          = "${local.name_prefix}-lambda3-invocation-failures"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "CoinbaseInvocationError"
+  namespace           = "Trading/Custom"
+  period              = "60"
+  statistic           = "Sum"
+  threshold           = "0"
+  alarm_description   = "Failures invoking Coinbase Lambda"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
 
   tags = local.common_tags
 }
