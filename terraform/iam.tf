@@ -114,6 +114,11 @@ resource "aws_iam_role_policy" "api_gateway_policy" {
         Resource = aws_lambda_function.main.arn
       },
       {
+        Effect   = "Allow"
+        Action   = "lambda:InvokeFunction"
+        Resource = aws_lambda_function.coinbase.arn
+      },
+      {
         Effect = "Allow"
         Action = [
           "logs:CreateLogGroup",
@@ -290,6 +295,59 @@ resource "aws_iam_role_policy" "lambda_cloudwatch" {
           "cloudwatch:PutMetricData"
         ]
         Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "coinbase_api_gateway_role" {
+  name = "${local.name_prefix}-coinbase-api-gateway-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "apigateway.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy" "coinbase_api_gateway_policy" {
+  name = "${local.name_prefix}-coinbase-api-gateway-policy"
+  role = aws_iam_role.coinbase_api_gateway_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "lambda:InvokeFunction"
+        Resource = aws_lambda_function.coinbase.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:PutLogEvents",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents"
+        ]
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/apigateway/*",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/apigateway/*:log-stream:*",
+          "${aws_cloudwatch_log_group.api_logs.arn}",
+          "${aws_cloudwatch_log_group.api_logs.arn}:*"
+        ]
       }
     ]
   })
