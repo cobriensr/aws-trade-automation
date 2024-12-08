@@ -52,6 +52,14 @@ jobs:
       run: |
         pip install -r src/lambda/requirements-lambda.txt --target ./src/lambda
         cd src/lambda
+        # Clean up unnecessary files
+        find . -type d -name "tests" -exec rm -rf {} +
+        find . -type d -name "examples" -exec rm -rf {} +
+        find . -type d -name "*.dist-info" -exec rm -rf {} +
+        find . -name "*.pyc" -delete
+        find . -name "*.pyo" -delete
+        find . -name "*.dist-info" -exec rm -rf {} +
+        find . -name "__pycache__" -exec rm -rf {} +
         zip -r ../../terraform/lambda_function.zip ./*
         aws s3 cp ../../terraform/lambda_function.zip s3://trading-lambda-deployment/lambda_function.zip
 

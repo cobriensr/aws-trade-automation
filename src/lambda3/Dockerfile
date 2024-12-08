@@ -13,13 +13,18 @@ COPY requirements.txt .
 # Install packages directly in the function directory
 RUN pip install -r requirements.txt
 
+# Clean up unnecessary files
+RUN cd /var/lang/lib/python3.12/site-packages && \
+    find . -type d -name "tests" -exec rm -rf {} + && \
+    find . -type d -name "examples" -exec rm -rf {} + && \
+    find . -type d -name "*.dist-info" -exec rm -rf {} + && \
+    find . -type f -name "*.pyc" -delete && \
+    find . -type f -name "*.pyo" -delete && \
+    find . -type d -name "__pycache__" -exec rm -rf {} +
+
 # Copy installed packages to the function directory
 RUN cp -r /var/lang/lib/python3.12/site-packages/* .
 
 # Create deployment package
 RUN zip -r /lambda3_function.zip .
-
-# List contents to verify structure
-RUN unzip -l /lambda3_function.zip
-
 
