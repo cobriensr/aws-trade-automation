@@ -67,7 +67,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
         ]
         Resource = [
           "*",
-          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:symbol_lookup"
+          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:trading-prod-symbol-lookup"
         ]
       },
       {
