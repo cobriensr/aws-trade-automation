@@ -182,7 +182,7 @@ def list_accounts(api_key: str, api_secret: str) -> str:
         accounts = client.get_accounts(
             limit=1,
         )
-        return accounts['accounts'][0]
+        return accounts['accounts'][0].to_dict()
     except Exception as e:
         logger.error(f"Failed to list accounts: {str(e)}")
         raise CoinbaseError("Failed to list accounts") from e
