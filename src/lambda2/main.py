@@ -245,9 +245,13 @@ def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
             logger.warning(f"Low remaining execution time: {remaining_time}ms")
             
         try:
-            memory_used = psutil.Process().memory_info().rss / 1024 / 1024
+            memory_used = psutil.Process().memory_info().rss / 1024 / 1024  # Convert to MB
             publish_metric('memory_used', memory_used, 'Megabytes')
-            if memory_used > context.memory_limit_in_mb * 0.9:
+            memory_limit = float(context.memory_limit_in_mb)  # Convert to float
+            threshold = int(memory_limit * 0.9)  # Convert the threshold to integer
+            if memory_used > threshold:
                 logger.warning(f"High memory usage: {memory_used:.2f}MB")
         except ImportError:
             logger.warning("psutil not available - memory monitoring disabled")
+        except Exception as e:
+            logger.error(f"Error monitoring memory usage: {str(e)}")

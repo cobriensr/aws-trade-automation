@@ -71,7 +71,8 @@ resource "aws_iam_role_policy" "lambda_parameter_store" {
         Effect = "Allow"
         Action = [
           "ssm:GetParameter",
-          "ssm:PutParameter"
+          "ssm:PutParameter",
+          "ssm:GetParameters"
         ]
         Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/tradovate/*"
       }
@@ -270,6 +271,25 @@ resource "aws_iam_role_policy" "lambda3_parameter_store" {
           "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/tradovate/COINBASE_API_KEY_NAME",
           "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/tradovate/COINBASE_PRIVATE_KEY"
         ]
+      }
+    ]
+  })
+}
+
+# Add CloudWatch metrics permission to lambda policy
+resource "aws_iam_role_policy" "lambda_cloudwatch" {
+  name = "cloudwatch_metrics_access"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData"
+        ]
+        Resource = "*"
       }
     ]
   })
