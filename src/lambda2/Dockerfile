@@ -10,15 +10,31 @@ WORKDIR /function
 COPY main.py .
 COPY requirements.txt .
 
-# Install packages to a temporary directory, clean them up, and copy to function directory
+# Install packages and perform aggressive cleanup
 RUN pip install --target . --no-cache-dir -r requirements.txt && \
+    # Remove all test/example/doc directories
     find . -type d -name "tests" -exec rm -rf {} + && \
+    find . -type d -name "test" -exec rm -rf {} + && \
+    find . -type d -name "*test*" -exec rm -rf {} + && \
     find . -type d -name "examples" -exec rm -rf {} + && \
     find . -type d -name "*.dist-info" -exec rm -rf {} + && \
     find . -type d -name "docs" -exec rm -rf {} + && \
     find . -type d -name "doc" -exec rm -rf {} + && \
+    find . -type d -name "*docs*" -exec rm -rf {} + && \
     find . -type d -name "documentation" -exec rm -rf {} + && \
-    find . -type d -name "test" -exec rm -rf {} + && \
+    find . -type d -name "locale" -exec rm -rf {} + && \
+    find . -type d -name "locales" -exec rm -rf {} + && \
+    # Remove development files
+    find . -name "*.c" -delete && \
+    find . -name "*.h" -delete && \
+    find . -name "*.pxd" -delete && \
+    find . -name "*.pyx" -delete && \
+    find . -name "*.so.*" -delete && \
+    find . -name "*.pyi" -delete && \
+    find . -name "*.pyc" -delete && \
+    find . -name "*.pyo" -delete && \
+    find . -name "*.egg-info" -exec rm -rf {} + && \
+    # Remove documentation files
     find . -name "README*" -delete && \
     find . -name "readme*" -delete && \
     find . -name "CHANGELOG*" -delete && \
@@ -27,13 +43,22 @@ RUN pip install --target . --no-cache-dir -r requirements.txt && \
     find . -name "LICENSE*" -delete && \
     find . -name "*.md" -delete && \
     find . -name "*.rst" -delete && \
-    find . -name "*.pyc" -delete && \
-    find . -name "*.pyo" -delete && \
+    # Remove cache and build artifacts
     find . -name "__pycache__" -exec rm -rf {} + && \
+    # Remove data files
     find . -name "*.csv" -delete && \
     find . -name "*.json" -delete && \
     find . -name "*.yaml" -delete && \
-    find . -name "*.xml" -delete
+    find . -name "*.xml" -delete && \
+    find . -name "*.ipynb" -delete && \
+    find . -name "sample*" -delete && \
+    find . -name "example*" -delete && \
+    find . -name "dataset*" -delete && \
+    find . -name "*.pkl" -delete && \
+    # Remove specific large package components
+    find . -type d -name "pandas/tests" -exec rm -rf {} + && \
+    find . -type d -name "numpy/tests" -exec rm -rf {} + && \
+    find . -type d -name "numpy/doc" -exec rm -rf {} +
 
 # Create deployment package
 RUN zip -r /lambda2_function.zip .
