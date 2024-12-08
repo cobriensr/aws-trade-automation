@@ -14,14 +14,14 @@ COPY trading/ trading/
 # Install packages to a temporary directory, clean them up, and copy to function directory
 RUN pip install --target . --no-cache-dir -r requirements.txt && \
     # Remove all test/example/doc directories
-    find . -type d -name "tests" -exec rm -rf {} + && \
-    find . -type d -name "test" -exec rm -rf {} + && \
-    find . -type d -name "*test*" -exec rm -rf {} + && \
+    find . -type d -name "tests" -not -path "*/botocore/*" -exec rm -rf {} + && \
+    find . -type d -name "test" -not -path "*/botocore/*" -exec rm -rf {} + && \
+    find . -type d -name "*test*" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "examples" -exec rm -rf {} + && \
     find . -type d -name "*.dist-info" -exec rm -rf {} + && \
-    find . -type d -name "docs" -exec rm -rf {} + && \
-    find . -type d -name "doc" -exec rm -rf {} + && \
-    find . -type d -name "*docs*" -exec rm -rf {} + && \
+    find . -type d -name "docs" -not -path "*/botocore/*" -exec rm -rf {} + && \
+    find . -type d -name "doc" -not -path "*/botocore/*" -exec rm -rf {} + && \
+    find . -type d -name "*docs*" -not -path "*/botocore/*" -exec rm -rf {} + && \
     find . -type d -name "documentation" -exec rm -rf {} + && \
     find . -type d -name "locale" -exec rm -rf {} + && \
     find . -type d -name "locales" -exec rm -rf {} + && \
