@@ -184,6 +184,44 @@ resource "aws_iam_role_policy" "lambda2_policy" {
   })
 }
 
+# Attach CloudWatch metrics policy to Lambda 2 
+resource "aws_iam_role_policy" "lambda2_cloudwatch" {
+  name = "cloudwatch_metrics_access"
+  role = aws_iam_role.lambda2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach CloudWatch metrics policy to Lambda 23
+resource "aws_iam_role_policy" "lambda3_cloudwatch" {
+  name = "cloudwatch_metrics_access"
+  role = aws_iam_role.lambda3_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # Attach X-Ray policy to Lambda 2
 resource "aws_iam_role_policy_attachment" "lambda2_xray" {
   role       = aws_iam_role.lambda2_role.name
@@ -201,9 +239,11 @@ resource "aws_iam_role_policy" "lambda2_parameter_store" {
       {
         Effect = "Allow"
         Action = [
-          "ssm:GetParameter"
+          "ssm:GetParameter",
+          "ssm:PutParameter",
+          "ssm:GetParameters"
         ]
-        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/tradovate/DATABENTO_API_KEY"
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/tradovate/*"
       }
     ]
   })
@@ -270,11 +310,12 @@ resource "aws_iam_role_policy" "lambda3_parameter_store" {
       {
         Effect = "Allow"
         Action = [
-          "ssm:GetParameter"
+          "ssm:GetParameter",
+          "ssm:PutParameter",
+          "ssm:GetParameters"
         ]
         Resource = [
-          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/tradovate/COINBASE_API_KEY_NAME",
-          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/tradovate/COINBASE_PRIVATE_KEY"
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/tradovate/*",
         ]
       }
     ]
