@@ -127,3 +127,8 @@ jobs:
           --function-name trading-prod-symbol-lookup \
           --s3-bucket trading-lambda-deployment \
           --s3-key lambda2_function.zip
+        
+        aws lambda update-function-code \
+          --function-name trading-prod-coinbase \
+          --s3-bucket trading-lambda-deployment \
+          --s3-key lambda3_function.zip
