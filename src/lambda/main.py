@@ -9,8 +9,6 @@ from typing import Dict, Tuple, Any
 import psutil
 import boto3
 from botocore.exceptions import ClientError
-from aws_lambda_typing.events import APIGatewayProxyEventV2
-from aws_lambda_typing.context import Context
 from trading.oanda import (
     check_account_status,
     check_position_exists,
@@ -60,7 +58,7 @@ def publish_metric(name: str, value: float = 1, unit: str = "Count") -> None:
         logger.error(f"Failed to publish metric {name}: {str(e)}")
 
 
-def configure_logger(context: Context) -> None:
+def configure_logger(context) -> None:
     """Configure logger with Lambda context information and structured formatting"""
     formatter = logging.Formatter(
         "[%(levelname)s] %(asctime)s.%(msecs)03d "
@@ -313,7 +311,7 @@ def handle_futures_trade(
         raise TradingWebhookError(f"Futures trade failed: {str(e)}") from e
 
 
-def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
+def lambda_handler(event, context) -> Dict:
     """Main Lambda handler with comprehensive error handling and logging"""
     request_id = context.aws_request_id
     start_time = time.time()

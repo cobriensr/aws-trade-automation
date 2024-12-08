@@ -10,8 +10,6 @@ from typing import Dict, Tuple
 import boto3
 from botocore.exceptions import ClientError
 import psutil
-from aws_lambda_typing.events import APIGatewayProxyEventV2
-from aws_lambda_typing.context import Context
 from coinbase.rest import RESTClient
 
 MIN_ORDER = {
@@ -47,7 +45,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 
-def configure_logger(context: Context) -> None:
+def configure_logger(context) -> None:
     """Configure logger with Lambda context information"""
     formatter = logging.Formatter(
         "[%(levelname)s] %(asctime)s.%(msecs)03d "
@@ -399,7 +397,7 @@ def handle_position_change(
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
         raise CoinbaseError(f"Failed to change position: {str(e)}") from e
 
-def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
+def lambda_handler(event, context) -> Dict:
     """Enhanced Lambda handler with comprehensive error handling and metrics"""
     request_id = context.aws_request_id
     start_time = time.time()

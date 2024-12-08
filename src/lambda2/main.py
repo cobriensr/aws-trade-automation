@@ -10,8 +10,6 @@ from botocore.exceptions import ClientError
 import psutil
 import boto3
 import databento as db
-from aws_lambda_typing.events import APIGatewayProxyEventV2
-from aws_lambda_typing.context import Context
 
 # Configure logger
 logger = logging.getLogger()
@@ -39,7 +37,7 @@ def publish_metric(name: str, value: float = 1, unit: str = 'Count') -> None:
     except Exception as e:
         logger.error(f"Failed to publish metric {name}: {str(e)}")
 
-def configure_logger(context: Context) -> None:
+def configure_logger(context) -> None:
     """Configure logger with enhanced Lambda context information"""
     formatter = logging.Formatter(
         "[%(levelname)s] %(asctime)s.%(msecs)03d "
@@ -165,7 +163,7 @@ def get_historical_data_dict(api_key: str) -> Dict:
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
         raise SymbolLookupError(f"Failed to get historical data: {str(e)}") from e
 
-def lambda_handler(event: APIGatewayProxyEventV2, context: Context) -> Dict:
+def lambda_handler(event, context) -> Dict:
     """Lambda handler with comprehensive error handling and monitoring"""
     request_id = context.aws_request_id
     start_time = time.time()

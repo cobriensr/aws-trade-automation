@@ -1,4 +1,3 @@
 boto3
-aws-lambda-typing
 coinbase-advanced-py
 psutil
