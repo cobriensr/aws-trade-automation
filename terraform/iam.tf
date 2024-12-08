@@ -62,9 +62,13 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "ec2:CreateNetworkInterface",
           "ec2:DescribeNetworkInterfaces",
           "ec2:DeleteNetworkInterface",
-          "secretsmanager:GetSecretValue"
+          "secretsmanager:GetSecretValue",
+          "lambda:InvokeFunction"
         ]
-        Resource = "*"
+        Resource = [
+          "*",
+          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:symbol_lookup"
+        ]
       },
       {
         Effect = "Allow"
