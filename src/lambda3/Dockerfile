@@ -14,6 +14,9 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 RUN pip install python-dotenv
 
+# List installed packages
+RUN ls -l /var/lang/lib/python3.12/site-packages/dotenv
+
 # Create deployment package
 RUN zip -r /lambda3_function.zip .
 
