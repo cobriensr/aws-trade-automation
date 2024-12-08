@@ -10,10 +10,10 @@ WORKDIR /function
 COPY main.py .
 COPY requirements.txt .
 
-# Install packages directly in the function directory
-# Clean up unnecessary files
-RUN pip install --no-cache-dir -r requirements.txt && \
-    cd /var/lang/lib/python3.12/site-packages && \
+# Create a temporary directory for pip installations
+RUN mkdir -p /tmp/python && \
+    pip install --no-cache-dir --target /tmp/python -r requirements.txt && \
+    cd /tmp/python && \
     find . -type d -name "tests" -exec rm -rf {} + && \
     find . -type d -name "examples" -exec rm -rf {} + && \
     find . -type d -name "*.dist-info" -exec rm -rf {} + && \
@@ -47,10 +47,10 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     find . -name "conftest.py" -delete && \
     find . -name ".coveragerc" -delete && \
     find . -name ".gitignore" -delete && \
-    find . -name ".gitattributes" -delete
-
-# Copy installed packages to the function directory
-RUN cp -r /var/lang/lib/python3.12/site-packages/* .
+    find . -name ".gitattributes" -delete && \
+    cp -r /tmp/python/* . && \
+    rm -rf /tmp/python
 
 # Create deployment package
 RUN zip -r /lambda2_function.zip .
+
