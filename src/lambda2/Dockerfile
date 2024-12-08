@@ -13,6 +13,9 @@ COPY requirements.txt .
 # Install packages directly in the function directory
 RUN pip install -r requirements.txt
 
+# Copy installed packages to the function directory
+RUN cp -r /var/lang/lib/python3.12/site-packages/* .
+
 # Create deployment package
 RUN zip -r /lambda2_function.zip .
 
