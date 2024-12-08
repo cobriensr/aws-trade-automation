@@ -48,9 +48,10 @@ RUN mkdir -p /tmp/python && \
     find . -name ".coveragerc" -delete && \
     find . -name ".gitignore" -delete && \
     find . -name ".gitattributes" -delete && \
-    cp -r /tmp/python/* . && \
+    cp -rf /tmp/python/* /function/ && \
     rm -rf /tmp/python
 
 # Create deployment package
 RUN zip -r /lambda3_function.zip .
 
+CMD ["main.handler"]
