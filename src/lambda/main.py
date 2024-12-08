@@ -1,17 +1,14 @@
 """Main Lambda function for tradingview webhooks."""
 
-import os
 import json
 import logging
 import time
 import traceback
 from datetime import datetime, timezone
 from typing import Dict, Tuple, Any
-from pathlib import Path
 import psutil
 import boto3
 from botocore.exceptions import ClientError
-from dotenv import load_dotenv
 from aws_lambda_typing.events import APIGatewayProxyEventV2
 from aws_lambda_typing.context import Context
 from trading.oanda import (
@@ -120,23 +117,7 @@ def get_credentials() -> Tuple[str, str, str, str, str, str, str]:
 
     except ClientError as e:
         logger.error(f"AWS SSM error: {str(e)}")
-        # Fallback to local development environment
-        logger.info("Falling back to local .env file")
-        load_dotenv(Path(__file__).parents[2] / ".env")
-
-        creds = [
-            os.getenv("OANDA_SECRET"),
-            os.getenv("OANDA_ACCOUNT"),
-            os.getenv("USERNAME"),
-            os.getenv("PASSWORD"),
-            os.getenv("DEVICE_ID"),
-            os.getenv("CID"),
-            os.getenv("SECRET"),
-        ]
-
-        if not all(creds):
-            raise ValueError("Missing required credentials in .env file") from e
-        return tuple(creds)
+        raise ValueError("AWS SSM error:") from e
 
 
 def invoke_lambda_function(function_name: str, payload: Dict[str, Any] = None) -> Dict:

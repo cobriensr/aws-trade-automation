@@ -1,5 +1,4 @@
 boto3
-python-dotenv
 aws-lambda-typing
 coinbase-advanced-py
 psutil

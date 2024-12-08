@@ -1,6 +1,5 @@
 """Secondary Lambda function for symbol lookup."""
 
-import os
 import json
 import uuid
 import time
@@ -8,8 +7,6 @@ import traceback
 from datetime import datetime, timezone
 import logging
 from typing import Dict, Tuple
-from pathlib import Path
-from dotenv import load_dotenv
 import boto3
 from botocore.exceptions import ClientError
 import psutil
@@ -109,16 +106,7 @@ def get_api_key() -> Tuple[str, str]:
     except ClientError as e:
         publish_metric('api_key_retrieval_error')
         logger.error(f"AWS SSM error: {str(e)}")
-        
-        # Fallback to local development
-        load_dotenv(Path(__file__).parents[2] / ".env")
-        api_key = os.getenv("COINBASE_API_KEY_NAME")
-        api_secret = os.getenv("COINBASE_PRIVATE_KEY")
-        
-        if not all([api_key, api_secret]):
-            raise CoinbaseError("Failed to retrieve API credentials from all sources") from e
-            
-        return api_key, api_secret
+        raise CoinbaseError("Failed to retrieve API credentials from all sources") from e
 
 def place_order(client: RESTClient, order_type: str, symbol: str, size: float) -> Dict:
     """Generic order placement function with enhanced error handling"""

@@ -1,18 +1,15 @@
 """Secondary Lambda function for symbol lookup."""
 
-import os
 import json
 import logging
 import time
 import traceback
 from typing import Dict
-from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from botocore.exceptions import ClientError
 import psutil
 import boto3
 import databento as db
-from dotenv import load_dotenv
 from aws_lambda_typing.events import APIGatewayProxyEventV2
 from aws_lambda_typing.context import Context
 
@@ -76,16 +73,7 @@ def get_api_key() -> str:
         error_code = e.response.get('Error', {}).get('Code', 'Unknown')
         logger.error(f"AWS SSM error retrieving API key: {error_code} - {str(e)}")
         publish_metric('api_key_retrieval_error')
-        
-        # Fall back to local development environment
-        logger.info("Attempting fallback to local .env file")
-        load_dotenv(Path(__file__).parents[2] / ".env")
-        api_key = os.getenv("DATABENTO_API_KEY")
-        
-        if not api_key:
-            raise SymbolLookupError("Failed to retrieve Databento API key from all sources") from e
-            
-        return api_key
+        raise SymbolLookupError("Failed to retrieve Databento API key from all sources") from e
         
     except Exception as e:
         logger.error(f"Unexpected error retrieving API key: {str(e)}")
