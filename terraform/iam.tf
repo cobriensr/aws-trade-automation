@@ -20,6 +20,31 @@ resource "aws_iam_role" "lambda_role" {
   tags = local.common_tags
 }
 
+resource "aws_iam_role_policy" "lambda_error_handling" {
+  name = "${local.name_prefix}-error-handling"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:GetFunction",
+          "lambda:GetFunctionConfiguration",
+          "lambda:ListTags",
+          "lambda:ListVersionsByFunction"
+        ]
+        Resource = [
+          aws_lambda_function.symbol_lookup.arn,
+          aws_lambda_function.coinbase.arn,
+          aws_lambda_function.main.arn
+        ]
+      }
+    ]
+  })
+}
+
 # Allow the Lambda function to write logs to CloudWatch, create and delete network interfaces, and retrieve secrets from Secrets Manager
 resource "aws_iam_role_policy" "lambda_policy" {
   name = "${local.name_prefix}-lambda-policy"
@@ -45,8 +70,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Effect = "Allow"
         Action = ["lambda:InvokeFunction"]
         Resource = [
-          aws_lambda_function.symbol_lookup.arn,
-          aws_lambda_function.coinbase.arn
+          "${aws_lambda_function.symbol_lookup.arn}",
+          "${aws_lambda_function.coinbase.arn}"
         ]
       }
     ]
@@ -176,9 +201,16 @@ resource "aws_iam_role_policy" "lambda2_policy" {
           "logs:PutLogEvents",
           "ec2:CreateNetworkInterface",
           "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface"
+          "ec2:DeleteNetworkInterface",
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:InvokeFunction"
+        ]
+        Resource = "${aws_lambda_function.main.arn}"
       }
     ]
   })
