@@ -70,6 +70,7 @@ The above diagram illustrates the complete flow of the trading system, from Trad
    - 1024MB memory for optimal performance
    - 15-second timeout for trade processing
    - Python 3.12 runtime
+   - Elastic Container Registry
 
 3. Aurora PostgreSQL Serverless v2
    - Serverless auto-scaling (8-16 ACUs)
@@ -452,7 +453,8 @@ Notes:
      export TRADOVATE_APP_ID=your_app_id
      export OANDA_SECRET=your_oanda_secret
      export OANDA_ACCOUNT=your_oanda_account
-     export COINBASE_SECRET=your_coinbase_secret
+     export COINBASE_API_KEY_NAME=your_coinbase_api_key_name
+     export COINBASE_PRIVATE_KEY=your_coinbase_private_key
      ```
 
    - Mock Parameter Store responses when needed:
@@ -472,10 +474,6 @@ Notes:
                  }
              }
      ```
-
-   - Parameters used in production:
-     - `/tradovate/token`: Current authentication token
-     - `/tradovate/token_expiry`: Token expiration timestamp
 
 2. Connectivity:
 
