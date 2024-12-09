@@ -286,7 +286,7 @@ def handle_futures_trade(
 
         for contract in contract_names_with_ids:
             # Execute trading logic based on position and signal
-            if mapped_symbol in contract['name']:
+            if mapped_symbol in contract['contractName']:
                 liquidate_position(
                     contract_id=contract["contractId"], account_id=account_id, token=access_token
                 )
