@@ -2,6 +2,3 @@ boto3
 databento
 psutil
 numpy
-opentelemetry-api
-opentelemetry-sdk
-opentelemetry-instrumentation
