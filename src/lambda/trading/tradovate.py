@@ -9,7 +9,6 @@ import requests
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)  # Set to DEBUG for development, INFO for production
 
-
 # Set global variables
 DEMO = "https://demo.tradovateapi.com/v1"
 LIVE = "https://live.tradovateapi.com/v1"
@@ -155,23 +154,24 @@ def get_position(token: str, instrument: str) -> Tuple[int, int, int]:
         )
         # Return JSON data from response
         response.raise_for_status()
-        
+
         # Get JSON data from response
         data = response.json()
-        
+
         # If no positions found, return None values
         if not data or len(data) == 0:
             return None, None, None
-            
+
         # Take the first position if multiple exist
         position = data[0]  # Access first element since it's a list
-        
+
+        # Extract account ID, contract ID, and net position
         account_id = position.get("accountId")
         contract_id = position.get("contractId")
         net_pos = position.get("netPos", 0)
-        
+
         return account_id, contract_id, net_pos
-            
+
     except requests.exceptions.RequestException as e:
         logger.error(f"Error getting position: {str(e)}")
         return None, None, None

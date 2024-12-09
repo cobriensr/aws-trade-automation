@@ -31,14 +31,17 @@ MIN_ORDER = {
 # }
 
 # Initialize AWS clients
-cloudwatch = boto3.client('cloudwatch')
+cloudwatch = boto3.client("cloudwatch")
+
 
 class CoinbaseError(Exception):
     """Custom exception for Coinbase-specific errors"""
 
+
 # Generate a unique order ID
 def generate_order_id():
     return str(uuid.uuid4())
+
 
 # Configure logger
 logger = logging.getLogger()
@@ -62,20 +65,24 @@ def configure_logger(context) -> None:
     logger.info(f"Log Group: {context.log_group_name}")
     logger.info(f"Log Stream: {context.log_stream_name}")
 
-def publish_metric(name: str, value: float = 1, unit: str = 'Count') -> None:
+
+def publish_metric(name: str, value: float = 1, unit: str = "Count") -> None:
     """Publish a metric to CloudWatch"""
     try:
         cloudwatch.put_metric_data(
-            Namespace='Trading/Coinbase',
-            MetricData=[{
-                'MetricName': name,
-                'Value': value,
-                'Unit': unit,
-                'Timestamp': datetime.now(timezone.utc)
-            }]
+            Namespace="Trading/Coinbase",
+            MetricData=[
+                {
+                    "MetricName": name,
+                    "Value": value,
+                    "Unit": unit,
+                    "Timestamp": datetime.now(timezone.utc),
+                }
+            ],
         )
     except Exception as e:
         logger.error(f"Failed to publish metric {name}: {str(e)}")
+
 
 def get_api_key() -> Tuple[str, str]:
     """Get Coinbase API credentials with enhanced error handling"""
@@ -84,96 +91,92 @@ def get_api_key() -> Tuple[str, str]:
         response = ssm.get_parameters(
             Names=[
                 "/tradovate/COINBASE_API_KEY_NAME",
-                "/tradovate/COINBASE_PRIVATE_KEY"
+                "/tradovate/COINBASE_PRIVATE_KEY",
             ],
-            WithDecryption=True
+            WithDecryption=True,
         )
-        
-        if len(response['Parameters']) != 2:
-            missing = response.get('InvalidParameters', [])
+
+        if len(response["Parameters"]) != 2:
+            missing = response.get("InvalidParameters", [])
             raise CoinbaseError(f"Missing parameters: {', '.join(missing)}")
-            
-        param_dict = {p['Name']: p['Value'] for p in response['Parameters']}
-        publish_metric('api_key_retrieval_success')
-        
+
+        param_dict = {p["Name"]: p["Value"] for p in response["Parameters"]}
+        publish_metric("api_key_retrieval_success")
+
         return (
             param_dict["/tradovate/COINBASE_API_KEY_NAME"],
-            param_dict["/tradovate/COINBASE_PRIVATE_KEY"]
+            param_dict["/tradovate/COINBASE_PRIVATE_KEY"],
         )
-        
+
     except ClientError as e:
-        publish_metric('api_key_retrieval_error')
+        publish_metric("api_key_retrieval_error")
         logger.error(f"AWS SSM error: {str(e)}")
-        raise CoinbaseError("Failed to retrieve API credentials from all sources") from e
+        raise CoinbaseError(
+            "Failed to retrieve API credentials from all sources"
+        ) from e
+
 
 def place_order(client: RESTClient, order_type: str, symbol: str, size: float) -> Dict:
     """Generic order placement function with enhanced error handling"""
     start_time = time.time()
     order_id = str(uuid.uuid4())
-    
+
     try:
         logger.info(f"Placing {order_type} order for {symbol} - Size: {size}")
         formatted_symbol = f"{symbol[:3]}-{symbol[3:]}"
-        
+
         # Place order based on type
         if order_type == "BUY":
             order = client.market_order_buy(
                 client_order_id=order_id,
                 product_id=formatted_symbol,
-                base_size=str(size)
+                base_size=str(size),
             )
         else:  # SELL
             order = client.market_order_sell(
                 client_order_id=order_id,
                 product_id=formatted_symbol,
-                base_size=str(size)
+                base_size=str(size),
             )
-        
+
         # Record order timing
         duration = (time.time() - start_time) * 1000
-        publish_metric(f'{order_type.lower()}_order_duration', duration, 'Milliseconds')
-        
+        publish_metric(f"{order_type.lower()}_order_duration", duration, "Milliseconds")
+
         # Process response
-        if hasattr(order, 'success_response'):
+        if hasattr(order, "success_response"):
             order_id = order.success_response.order_id
             try:
                 fills = client.get_fills(order_id=order_id)
                 fill_details = fills.to_dict()
-                publish_metric(f'{order_type.lower()}_order_success')
-                return {
-                    "success": True,
-                    "order_id": order_id,
-                    "fills": fill_details
-                }
+                publish_metric(f"{order_type.lower()}_order_success")
+                return {"success": True, "order_id": order_id, "fills": fill_details}
             except Exception as e:
                 logger.error(f"Fill retrieval failed for order {order_id}: {str(e)}")
-                publish_metric('fill_retrieval_error')
+                publish_metric("fill_retrieval_error")
                 return {
                     "success": True,
                     "order_id": order_id,
                     "error": "Fill retrieval failed",
-                    "details": str(e)
+                    "details": str(e),
                 }
-        
-        elif hasattr(order, 'error_response'):
+
+        elif hasattr(order, "error_response"):
             error_msg = order.error_response
             logger.error(f"{order_type} order failed: {error_msg}")
-            publish_metric(f'{order_type.lower()}_order_error')
+            publish_metric(f"{order_type.lower()}_order_error")
             return {
                 "success": False,
                 "error": f"{order_type} order failed",
-                "details": error_msg
+                "details": error_msg,
             }
-            
+
     except Exception as e:
         logger.error(f"Order placement error: {str(e)}")
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
-        publish_metric(f'{order_type.lower()}_order_error')
-        return {
-            "success": False,
-            "error": "Order placement failed",
-            "details": str(e)
-        }
+        publish_metric(f"{order_type.lower()}_order_error")
+        return {"success": False, "error": "Order placement failed", "details": str(e)}
+
 
 def list_accounts(api_key: str, api_secret: str) -> str:
     """List Coinbase accounts with error handling"""
@@ -182,44 +185,47 @@ def list_accounts(api_key: str, api_secret: str) -> str:
         accounts = client.get_accounts(
             limit=1,
         )
-        return accounts['accounts'][0].to_dict()
+        return accounts["accounts"][0].to_dict()
     except Exception as e:
         logger.error(f"Failed to list accounts: {str(e)}")
         raise CoinbaseError("Failed to list accounts") from e
+
 
 def place_buy_order(api_key: str, api_secret: str, symbol: str) -> Dict:
     """Place buy order with validation and metrics"""
     try:
         if symbol not in MIN_ORDER:
-            publish_metric('invalid_symbol_error')
+            publish_metric("invalid_symbol_error")
             raise CoinbaseError(f"Invalid symbol: {symbol}")
-            
+
         client = RESTClient(api_key=api_key, api_secret=api_secret)
         size = MIN_ORDER[symbol]
-        
+
         return place_order(client, "BUY", symbol, size)
-        
+
     except Exception as e:
-        publish_metric('buy_order_error')
+        publish_metric("buy_order_error")
         logger.error(f"Buy order error: {str(e)}")
         raise
+
 
 def place_sell_order(api_key: str, api_secret: str, symbol: str) -> Dict:
     """Place sell order with validation and metrics"""
     try:
         if symbol not in MIN_ORDER:
-            publish_metric('invalid_symbol_error')
+            publish_metric("invalid_symbol_error")
             raise CoinbaseError(f"Invalid symbol: {symbol}")
-            
+
         client = RESTClient(api_key=api_key, api_secret=api_secret)
         size = MIN_ORDER[symbol]
-        
+
         return place_order(client, "SELL", symbol, size)
-        
+
     except Exception as e:
-        publish_metric('sell_order_error')
+        publish_metric("sell_order_error")
         logger.error(f"Sell order error: {str(e)}")
         raise
+
 
 def close_position(api_key: str, api_secret: str, symbol: str) -> Dict:
     """
@@ -343,59 +349,61 @@ def list_orders(api_key: str, api_secret: str, symbol: str) -> Dict:
 
 
 def handle_position_change(
-    api_key: str,
-    api_secret: str,
-    symbol: str,
-    direction: str
+    api_key: str, api_secret: str, symbol: str, direction: str
 ) -> Dict:
     """Handle position changes with full error handling and metrics"""
     start_time = time.time()
-    
+
     try:
         # Check existing positions
         current_positions = list_orders(api_key, api_secret, symbol)
         if not current_positions["success"]:
-            publish_metric('position_check_error')
-            raise CoinbaseError(f"Failed to check positions: {current_positions['error']}")
-            
+            publish_metric("position_check_error")
+            raise CoinbaseError(
+                f"Failed to check positions: {current_positions['error']}"
+            )
+
         # Close existing positions if any
         if current_positions.get("orders"):
             logger.info(f"Closing existing positions for {symbol}")
             close_result = close_position(api_key, api_secret, symbol)
             if not close_result["success"]:
-                publish_metric('position_close_error')
-                raise CoinbaseError(f"Failed to close positions: {close_result['error']}")
-                
-            publish_metric('position_closed')
+                publish_metric("position_close_error")
+                raise CoinbaseError(
+                    f"Failed to close positions: {close_result['error']}"
+                )
+
+            publish_metric("position_closed")
             logger.info("Existing positions closed successfully")
-            
+
         # Place new order
         if direction == "LONG":
             result = place_buy_order(api_key, api_secret, symbol)
         elif direction == "SHORT":
             result = place_sell_order(api_key, api_secret, symbol)
         else:
-            publish_metric('invalid_direction_error')
+            publish_metric("invalid_direction_error")
             raise CoinbaseError(f"Invalid direction: {direction}")
-            
+
         # Record execution time
         duration = (time.time() - start_time) * 1000
-        publish_metric('position_change_duration', duration, 'Milliseconds')
-        
+        publish_metric("position_change_duration", duration, "Milliseconds")
+
         if result["success"]:
-            publish_metric('position_change_success')
+            publish_metric("position_change_success")
             logger.info(f"Successfully changed position for {symbol} to {direction}")
         else:
-            publish_metric('position_change_error')
+            publish_metric("position_change_error")
             logger.error(f"Failed to change position: {result['error']}")
-            
+
         return result
-        
+
     except Exception as e:
-        publish_metric('position_change_error')
+        publish_metric("position_change_error")
         logger.error(f"Position change error: {str(e)}")
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
         raise CoinbaseError(f"Failed to change position: {str(e)}") from e
+
 
 def lambda_handler(event, context) -> Dict:
     """Enhanced Lambda handler with comprehensive error handling and metrics"""
@@ -405,100 +413,107 @@ def lambda_handler(event, context) -> Dict:
     try:
         configure_logger(context)
         logger.info(f"Processing request {request_id}")
-        
+
         # Extract path and handle different endpoints
         path = event.get("rawPath", event.get("path", ""))
         logger.info(f"Request path: {path}")
-        
+
         # Get credentials
         try:
             api_key, api_secret = get_api_key()
         except Exception as e:
-            publish_metric('credentials_error')
+            publish_metric("credentials_error")
             return {
                 "statusCode": 500,
-                "body": json.dumps({
-                    "error": "Failed to retrieve credentials",
-                    "details": str(e),
-                    "request_id": request_id
-                })
+                "body": json.dumps(
+                    {
+                        "error": "Failed to retrieve credentials",
+                        "details": str(e),
+                        "request_id": request_id,
+                    }
+                ),
             }
-        
+
         if path.endswith("/coinbasestatus"):
             account_info = list_accounts(api_key, api_secret)
             response = {"statusCode": 200, "body": json.dumps(account_info)}
             return response
-        
+
         # Validate webhook data
         try:
             webhook_data = json.loads(event["body"])
             symbol = webhook_data["market_data"]["symbol"]
             direction = webhook_data["signal"]["direction"]
         except (json.JSONDecodeError, KeyError) as e:
-            publish_metric('invalid_webhook_error')
+            publish_metric("invalid_webhook_error")
             return {
                 "statusCode": 400,
-                "body": json.dumps({
-                    "error": "Invalid webhook data",
-                    "details": str(e),
-                    "request_id": request_id
-                })
+                "body": json.dumps(
+                    {
+                        "error": "Invalid webhook data",
+                        "details": str(e),
+                        "request_id": request_id,
+                    }
+                ),
             }
-            
+
         # Process trading signal
         try:
             result = handle_position_change(api_key, api_secret, symbol, direction)
             status_code = 200 if result["success"] else 500
-            
+
             return {
                 "statusCode": status_code,
-                "body": json.dumps({
-                    "success": result["success"],
-                    "message": f"Processed {direction} signal for {symbol}",
-                    "details": result,
-                    "request_id": request_id
-                })
+                "body": json.dumps(
+                    {
+                        "success": result["success"],
+                        "message": f"Processed {direction} signal for {symbol}",
+                        "details": result,
+                        "request_id": request_id,
+                    }
+                ),
             }
-            
+
         except CoinbaseError as e:
-            publish_metric('trading_error')
+            publish_metric("trading_error")
             return {
                 "statusCode": 400,
-                "body": json.dumps({
-                    "error": str(e),
-                    "request_id": request_id
-                })
+                "body": json.dumps({"error": str(e), "request_id": request_id}),
             }
-            
+
     except Exception as e:
-        publish_metric('lambda_error')
+        publish_metric("lambda_error")
         logger.error(f"Unexpected error: {str(e)}")
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
         return {
             "statusCode": 500,
-            "body": json.dumps({
-                "error": "Internal server error",
-                "details": str(e),
-                "request_id": request_id
-            })
+            "body": json.dumps(
+                {
+                    "error": "Internal server error",
+                    "details": str(e),
+                    "request_id": request_id,
+                }
+            ),
         }
-        
+
     finally:
         # Record execution metrics
         duration = (time.time() - start_time) * 1000
-        publish_metric('lambda_duration', duration, 'Milliseconds')
-        
+        publish_metric("lambda_duration", duration, "Milliseconds")
+
         # Log request completion
         log_message = f"Request {request_id} completed in {duration:.2f}ms"
         if duration > 5000:
             logger.warning(f"{log_message} - Request took longer than 5 seconds")
         else:
             logger.info(log_message)
-            
+
         # Monitor memory usage
         try:
-            memory_used = psutil.Process().memory_info().rss / 1024 / 1024  # Convert to MB
-            publish_metric('memory_used', memory_used, 'Megabytes')
+            memory_used = (
+                psutil.Process().memory_info().rss / 1024 / 1024
+            )  # Convert to MB
+            publish_metric("memory_used", memory_used, "Megabytes")
             memory_limit = float(context.memory_limit_in_mb)  # Convert to float
             threshold = int(memory_limit * 0.9)  # Convert the threshold to integer
             if memory_used > threshold:

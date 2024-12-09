@@ -127,30 +127,40 @@ def invoke_lambda_function(function_name: str, payload: Dict[str, Any] = None) -
         response = lambda_client.invoke(
             FunctionName=function_name,
             InvocationType="RequestResponse",
-            Payload=json.dumps(payload) if payload else "{}"
+            Payload=json.dumps(payload) if payload else "{}",
         )
 
         duration = (time.time() - start_time) * 1000
         publish_metric(f"{function_name}_duration", duration, "Milliseconds")
 
         if response["StatusCode"] != 200:
-            logger.error(f"Lambda invocation failed with status code: {response['StatusCode']}")
-            raise TradingWebhookError(f"Lambda invocation failed: {response['StatusCode']}")
+            logger.error(
+                f"Lambda invocation failed with status code: {response['StatusCode']}"
+            )
+            raise TradingWebhookError(
+                f"Lambda invocation failed: {response['StatusCode']}"
+            )
 
         payload = json.loads(response["Payload"].read())
         if "errorMessage" in payload:
-            logger.error(f"Lambda execution failed with error: {payload['errorMessage']}")
-            raise TradingWebhookError(f"Lambda execution failed: {payload['errorMessage']}")
+            logger.error(
+                f"Lambda execution failed with error: {payload['errorMessage']}"
+            )
+            raise TradingWebhookError(
+                f"Lambda execution failed: {payload['errorMessage']}"
+            )
 
         logger.info(f"Successfully invoked Lambda function: {function_name}")
         return payload
 
     except ClientError as e:
-        error_code = e.response['Error']['Code']
-        error_message = e.response['Error']['Message']
+        error_code = e.response["Error"]["Code"]
+        error_message = e.response["Error"]["Message"]
         logger.error(f"AWS Lambda ClientError: {error_code} - {error_message}")
         publish_metric(f"{function_name}_error")
-        raise TradingWebhookError(f"Failed to invoke {function_name}: {error_code} - {error_message}") from e
+        raise TradingWebhookError(
+            f"Failed to invoke {function_name}: {error_code} - {error_message}"
+        ) from e
     except Exception as e:
         logger.error(f"Lambda invocation error: {str(e)}")
         publish_metric(f"{function_name}_error")
@@ -235,19 +245,19 @@ def handle_futures_trade(
         logger.info(f"Authenticated successfully, token expires: {expiration_time}")
 
         # Get symbol mapping
-        lambda2_function_name = os.environ['LAMBDA2_FUNCTION_NAME']
+        lambda2_function_name = os.environ["LAMBDA2_FUNCTION_NAME"]
         mapping_response = invoke_lambda_function(lambda2_function_name)
 
         # Parse the response
         try:
-            response_body = json.loads(mapping_response.get('body', '{}'))
-            mapping_dict = response_body.get('data', {})
-            
+            response_body = json.loads(mapping_response.get("body", "{}"))
+            mapping_dict = response_body.get("data", {})
+
             logger.info(f"Received symbol mapping: {json.dumps(mapping_dict)}")
-            
+
             if symbol not in mapping_dict:
                 raise TradingWebhookError(f"Symbol not found in mapping: {symbol}")
-                
+
             mapped_symbol = mapping_dict[symbol]
             logger.info(f"Mapped symbol {symbol} to {mapped_symbol}")
         except json.JSONDecodeError as e:
@@ -255,7 +265,9 @@ def handle_futures_trade(
             raise TradingWebhookError("Invalid symbol mapping response format") from e
         except KeyError as e:
             logger.error(f"Missing required field in symbol mapping response: {str(e)}")
-            raise TradingWebhookError("Invalid symbol mapping response structure") from e
+            raise TradingWebhookError(
+                "Invalid symbol mapping response structure"
+            ) from e
 
         # Get account and position
         account = get_accounts(access_token)
@@ -342,12 +354,14 @@ def lambda_handler(event, context) -> Dict:
     try:
         # Configure logging
         configure_logger(context)
-        
+
         # Validate required environment variables
-        required_env_vars = ['LAMBDA2_FUNCTION_NAME']
+        required_env_vars = ["LAMBDA2_FUNCTION_NAME"]
         missing_vars = [var for var in required_env_vars if not os.getenv(var)]
         if missing_vars:
-            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+            raise ValueError(
+                f"Missing required environment variables: {', '.join(missing_vars)}"
+            )
 
         logger.info(f"Processing request {request_id}")
         logger.debug(f"Event: {json.dumps(event, indent=2)}")
@@ -489,8 +503,10 @@ def lambda_handler(event, context) -> Dict:
 
         # Record memory usage
         try:
-            memory_used = psutil.Process().memory_info().rss / 1024 / 1024  # Convert to MB
-            publish_metric('memory_used', memory_used, 'Megabytes')
+            memory_used = (
+                psutil.Process().memory_info().rss / 1024 / 1024
+            )  # Convert to MB
+            publish_metric("memory_used", memory_used, "Megabytes")
             memory_limit = float(context.memory_limit_in_mb)  # Convert to float
             threshold = int(memory_limit * 0.9)  # Convert the threshold to integer
             if memory_used > threshold:
