@@ -236,12 +236,26 @@ def handle_futures_trade(
 
         # Get symbol mapping
         lambda2_function_name = os.environ['LAMBDA2_FUNCTION_NAME']
-        mapping_dict = invoke_lambda_function(lambda2_function_name)
-        if symbol not in mapping_dict:
-            raise TradingWebhookError(f"Symbol not found in mapping: {symbol}")
+        mapping_response = invoke_lambda_function(lambda2_function_name)
 
-        mapped_symbol = mapping_dict[symbol]
-        logger.info(f"Mapped symbol {symbol} to {mapped_symbol}")
+        # Parse the response
+        try:
+            response_body = json.loads(mapping_response.get('body', '{}'))
+            mapping_dict = response_body.get('data', {})
+            
+            logger.info(f"Received symbol mapping: {json.dumps(mapping_dict)}")
+            
+            if symbol not in mapping_dict:
+                raise TradingWebhookError(f"Symbol not found in mapping: {symbol}")
+                
+            mapped_symbol = mapping_dict[symbol]
+            logger.info(f"Mapped symbol {symbol} to {mapped_symbol}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse symbol mapping response: {str(e)}")
+            raise TradingWebhookError("Invalid symbol mapping response format") from e
+        except KeyError as e:
+            logger.error(f"Missing required field in symbol mapping response: {str(e)}")
+            raise TradingWebhookError("Invalid symbol mapping response structure") from e
 
         # Get account and position
         account = get_accounts(access_token)
