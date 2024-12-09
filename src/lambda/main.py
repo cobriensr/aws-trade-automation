@@ -268,13 +268,14 @@ def handle_futures_trade(
                 "Invalid symbol mapping response structure"
             ) from e
 
-        # Get default account ID
+        # Get default account ID first
         account_id = get_accounts(access_token)
 
         # Get current positions
         positions = get_all_positions(access_token, mapped_symbol)
 
         if positions:
+            # There are existing positions - liquidate and then place new order
             logger.info(
                 f"Found existing positions for {mapped_symbol}, liquidating first"
             )
@@ -292,57 +293,29 @@ def handle_futures_trade(
                     )
                     logger.info(f"Liquidation result: {liquidate_result}")
 
-                    # Place new order after liquidation based on signal direction
-                    if signal_direction == "LONG":
-                        logger.info(
-                            f"Placing BUY order for {mapped_symbol} after liquidation"
-                        )
-                        order_result = place_buy_order(
-                            username=username,
-                            instrument=mapped_symbol,
-                            account_id=account_id,
-                            quantity=1,
-                            token=access_token,
-                        )
-                    else:  # signal_direction == "SHORT"
-                        logger.info(
-                            f"Placing SELL order for {mapped_symbol} after liquidation"
-                        )
-                        order_result = place_sell_order(
-                            username=username,
-                            instrument=mapped_symbol,
-                            account_id=account_id,
-                            quantity=1,
-                            token=access_token,
-                        )
-                    logger.info(
-                        f"Order placement result after liquidation: {order_result}"
-                    )
-        else:
-            # No positions found - place new order based on signal direction
-            if signal_direction == "LONG":
-                logger.info(
-                    f"No positions found - Placing new BUY order for {mapped_symbol}"
-                )
-                order_result = place_buy_order(
-                    username=username,
-                    instrument=mapped_symbol,
-                    account_id=account_id,
-                    quantity=1,
-                    token=access_token,
-                )
-            else:  # signal_direction == "SHORT"
-                logger.info(
-                    f"No positions found - Placing new SELL order for {mapped_symbol}"
-                )
-                order_result = place_sell_order(
-                    username=username,
-                    instrument=mapped_symbol,
-                    account_id=account_id,
-                    quantity=1,
-                    token=access_token,
-                )
-            logger.info(f"New order placement result: {order_result}")
+        # Place new order based on signal direction
+        logger.info(
+            f"Placing {'BUY' if signal_direction == 'LONG' else 'SELL'} order for {mapped_symbol}"
+        )
+
+        if signal_direction == "LONG":
+            order_result = place_buy_order(
+                username=username,
+                instrument=mapped_symbol,
+                account_id=account_id,
+                quantity=1,
+                token=access_token,
+            )
+        else:  # signal_direction == "SHORT"
+            order_result = place_sell_order(
+                username=username,
+                instrument=mapped_symbol,
+                account_id=account_id,
+                quantity=1,
+                token=access_token,
+            )
+
+        logger.info(f"Order placement result: {order_result}")
 
         if "error" in order_result or "errorText" in order_result:
             error_msg = order_result.get("error") or order_result.get("errorText")
