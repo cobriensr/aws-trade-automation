@@ -28,10 +28,10 @@ RUN pip install --target . --no-cache-dir -r requirements.txt && \
     find . -type d -name "locale" -not -path "*/boto*/*" -exec rm -rf {} + && \
     find . -type d -name "locales" -not -path "*/boto*/*" -exec rm -rf {} + && \
     # Remove development files
-    find . -name "*.c" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
-    find . -name "*.h" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
-    find . -name "*.pxd" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
-    find . -name "*.pyx" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
+    find . -name "*.c" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -delete && \
+    find . -name "*.h" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -delete && \
+    find . -name "*.pxd" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -delete && \
+    find . -name "*.pyx" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -delete && \
     find . -name "*.so.*" -not -path "*/boto*/*" -delete && \
     find . -name "*.pyi" -not -path "*/boto*/*" -delete && \
     find . -name "*.pyc" -not -path "*/boto*/*" -delete && \
