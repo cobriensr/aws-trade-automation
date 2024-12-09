@@ -14,19 +14,19 @@ resource "aws_lambda_function" "main" {
 
   environment {
     variables = {
-      AWS_LAMBDA_FUNCTION_TIMEOUT = "30"
-      AWS_LAMBDA_INITIALIZATION_TYPE = "provisioned-concurrency"
+      AWS_LAMBDA_FUNCTION_TIMEOUT       = "30"
+      AWS_LAMBDA_INITIALIZATION_TYPE    = "provisioned-concurrency"
       AWS_LAMBDA_INITIALIZATION_TIMEOUT = "25"
-      FUNCTION_NAME         = "${local.name_prefix}-function"
-      OANDA_SECRET          = "${data.aws_ssm_parameter.oanda_secret.value}"
-      OANDA_ACCOUNT         = "${data.aws_ssm_parameter.oanda_account.value}"
-      DATABENTO_API_KEY     = "${data.aws_ssm_parameter.databento_key.value}"
-      TRADOVATE_USERNAME    = "${data.aws_ssm_parameter.tradovate_username.value}"
-      TRADOVATE_PASSWORD    = "${data.aws_ssm_parameter.tradovate_password.value}"
-      TRADOVATE_DEVICE_ID   = "${data.aws_ssm_parameter.tradovate_device_id.value}"
-      TRADOVATE_CID         = "${data.aws_ssm_parameter.tradovate_cid.value}"
-      TRADOVATE_SECRET      = "${data.aws_ssm_parameter.tradovate_secret.value}"
-      LAMBDA2_FUNCTION_NAME = aws_lambda_function.symbol_lookup.function_name
+      FUNCTION_NAME                     = "${local.name_prefix}-function"
+      OANDA_SECRET                      = "${data.aws_ssm_parameter.oanda_secret.value}"
+      OANDA_ACCOUNT                     = "${data.aws_ssm_parameter.oanda_account.value}"
+      DATABENTO_API_KEY                 = "${data.aws_ssm_parameter.databento_key.value}"
+      TRADOVATE_USERNAME                = "${data.aws_ssm_parameter.tradovate_username.value}"
+      TRADOVATE_PASSWORD                = "${data.aws_ssm_parameter.tradovate_password.value}"
+      TRADOVATE_DEVICE_ID               = "${data.aws_ssm_parameter.tradovate_device_id.value}"
+      TRADOVATE_CID                     = "${data.aws_ssm_parameter.tradovate_cid.value}"
+      TRADOVATE_SECRET                  = "${data.aws_ssm_parameter.tradovate_secret.value}"
+      LAMBDA2_FUNCTION_NAME             = aws_lambda_function.symbol_lookup.function_name
     }
   }
 
@@ -54,11 +54,11 @@ resource "aws_lambda_function" "symbol_lookup" {
 
   environment {
     variables = {
-      AWS_LAMBDA_FUNCTION_TIMEOUT = "30"
-      AWS_LAMBDA_INITIALIZATION_TYPE = "provisioned-concurrency"
+      AWS_LAMBDA_FUNCTION_TIMEOUT       = "30"
+      AWS_LAMBDA_INITIALIZATION_TYPE    = "provisioned-concurrency"
       AWS_LAMBDA_INITIALIZATION_TIMEOUT = "25"
-      FUNCTION_NAME     = "${local.name_prefix}-symbol-lookup"
-      DATABENTO_API_KEY = data.aws_ssm_parameter.databento_key.value
+      FUNCTION_NAME                     = "${local.name_prefix}-symbol-lookup"
+      DATABENTO_API_KEY                 = data.aws_ssm_parameter.databento_key.value
     }
   }
 
@@ -90,12 +90,12 @@ resource "aws_lambda_function" "coinbase" {
 
   environment {
     variables = {
-      AWS_LAMBDA_FUNCTION_TIMEOUT = "30"
-      AWS_LAMBDA_INITIALIZATION_TYPE = "provisioned-concurrency"
+      AWS_LAMBDA_FUNCTION_TIMEOUT       = "30"
+      AWS_LAMBDA_INITIALIZATION_TYPE    = "provisioned-concurrency"
       AWS_LAMBDA_INITIALIZATION_TIMEOUT = "25"
-      FUNCTION_NAME         = "${local.name_prefix}-coinbase"
-      COINBASE_API_KEY_NAME = "${data.aws_ssm_parameter.coinbase_api_key_name.value}"
-      COINBASE_PRIVATE_KEY  = "${data.aws_ssm_parameter.coinbase_private_key.value}"
+      FUNCTION_NAME                     = "${local.name_prefix}-coinbase"
+      COINBASE_API_KEY_NAME             = "${data.aws_ssm_parameter.coinbase_api_key_name.value}"
+      COINBASE_PRIVATE_KEY              = "${data.aws_ssm_parameter.coinbase_private_key.value}"
     }
   }
 
