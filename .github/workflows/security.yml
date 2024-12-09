@@ -84,11 +84,10 @@ jobs:
             fi
           done
 
-      - name: Scan Terraform code
-        run: |
-          curl -L "$(curl -s https://api.github.com/repos/aquasecurity/tfsec/releases/latest | grep -o -E "https://.+?tfsec-linux-amd64")" > tfsec
-          chmod +x tfsec
-          ./tfsec ./terraform --format=sarif > trivy-terraform-scan.sarif
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-sarif-action@v0.1.4
+        with:
+          sarif_file: trivy-terraform-scan.sarif
 
       - name: Upload scan results to Security tab
         uses: github/codeql-action/upload-sarif@v3
