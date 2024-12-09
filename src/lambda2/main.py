@@ -210,7 +210,7 @@ def lambda_handler(event, context) -> Dict:
         logger.info(f"Symbol mapping result: {json.dumps(symbol_mapping)}")
         
         # Record success response
-        return {
+        response = {
             "statusCode": 200,
             "body": json.dumps({
                 "status": "success",
@@ -218,6 +218,11 @@ def lambda_handler(event, context) -> Dict:
                 "timestamp": datetime.now(timezone.utc).isoformat()
             })
         }
+        
+        # Log response
+        logger.info(f"Returning response: {json.dumps(response)}")  # Add this log
+        
+        return response
         
     except SymbolLookupError as e:
         logger.error(f"Symbol lookup error in request {request_id}: {str(e)}")
