@@ -152,7 +152,7 @@ def get_contract_info(token: str, contract_ids: list[int]) -> List[Dict]:
     ids_param = ','.join(str(id) for id in contract_ids)
 
     # Make POST request to get contract info
-    response = requests.post(
+    response = requests.get(
         f"{DEMO}/contract/items?{ids_param}", headers=headers, timeout=10
     )
 
