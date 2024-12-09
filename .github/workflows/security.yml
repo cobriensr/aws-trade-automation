@@ -1,0 +1,106 @@
+name: Security Scans
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/lambda/**'
+      - 'src/lambda2/**'
+      - 'src/lambda3/**'
+      - 'terraform/**'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # Daily scan
+
+permissions:
+  security-events: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Trivy fs scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-config-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Build Docker images for scanning
+        run: |
+          cd src/lambda
+          docker build -t lambda1-image .
+          cd ../lambda2
+          docker build -t lambda2-image .
+          cd ../lambda3
+          docker build -t lambda3-image .
+
+      - name: Scan Docker images
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          image-ref: 'lambda1-image,lambda2-image,lambda3-image'
+          format: 'sarif'
+          output: 'trivy-images.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Scan Python dependencies
+        run: |
+          pip install safety
+          for dir in src/lambda*; do
+            if [ -f "$dir/requirements.txt" ]; then
+              echo "Scanning $dir"
+              safety check -r "$dir/requirements.txt" --json > "$dir/safety-report.json" || true
+            fi
+          done
+
+      - name: Scan Terraform code
+        run: |
+          curl -L "$(curl -s https://api.github.com/repos/aquasecurity/tfsec/releases/latest | grep -o -E "https://.+?tfsec-linux-amd64")" > tfsec
+          chmod +x tfsec
+          ./tfsec ./terraform --format=sarif > terraform-scan.sarif
+
+      - name: Upload scan results to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: '*.sarif'
+
+      - name: Create summary report
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "## Security Scan Summary" > summary.md
+          echo "### Trivy Filesystem Scan" >> summary.md
+          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-results.sarif >> summary.md
+          echo "### Docker Image Scans" >> summary.md
+          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-images.sarif >> summary.md
+          echo "### Terraform Scan" >> summary.md
+          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' terraform-scan.sarif >> summary.md
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('summary.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
