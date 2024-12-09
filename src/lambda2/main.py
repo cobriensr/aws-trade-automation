@@ -148,20 +148,31 @@ def get_historical_data_dict(api_key: str) -> Dict:
         if df.empty:
             raise SymbolLookupError("No data returned from Databento API")
 
-        # Process the data
+                # Process the data
         df["date"] = df.index.date
         pivoted = df.pivot(index="date", columns="symbol", values="raw_symbol")
         
         if pivoted.empty:
             raise SymbolLookupError("Failed to process symbol data")
             
-        # Get latest data and map symbols correctly
+        # Get latest data and map symbols with detailed logging
         latest_data = pivoted.iloc[-1].to_dict()
-        result = {databento_mapping[k]: v for k, v in latest_data.items()}
+        logger.info(f"Raw latest data: {latest_data}")  # Debug log
         
+        result = {}
+        for k, v in latest_data.items():
+            tradovate_symbol = databento_mapping.get(k)
+            if tradovate_symbol:
+                logger.info(f"Mapping {k} -> {tradovate_symbol} = {v}")
+                result[tradovate_symbol] = v
+            else:
+                logger.warning(f"No mapping found for Databento symbol: {k}")
+
         # Validate result
         if not result:
             raise SymbolLookupError("No symbols mapped in result")
+            
+        logger.info(f"Final symbol mapping: {json.dumps(result)}")  # Debug log
             
         # Record success metrics
         duration = (time.time() - start_time) * 1000
@@ -194,6 +205,9 @@ def lambda_handler(event, context) -> Dict:
         
         # Get symbol mapping
         symbol_mapping = get_historical_data_dict(api_key)
+        
+        # Log symbol mapping
+        logger.info(f"Symbol mapping result: {json.dumps(symbol_mapping)}")
         
         # Record success response
         return {
