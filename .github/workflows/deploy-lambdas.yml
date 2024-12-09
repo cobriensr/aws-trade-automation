@@ -48,6 +48,10 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
     - name: Build and package Lambda 1
       run: |
         cd src/lambda
@@ -57,14 +61,15 @@ jobs:
         docker rm lambda-container
         aws s3 cp ../../terraform/lambda_function.zip s3://trading-lambda-deployment/lambda_function.zip
 
-    - name: Build and package Lambda 2
+    - name: Build and push Lambda 2 container
       run: |
         cd src/lambda2
-        docker buildx build --platform linux/amd64 --load -t lambda2-build .
-        docker create --name lambda2-container lambda2-build
-        docker cp lambda2-container:/lambda2_function.zip ../../terraform/
-        docker rm lambda2-container
-        aws s3 cp ../../terraform/lambda2_function.zip s3://trading-lambda-deployment/lambda2_function.zip
+        IMAGE_TAG="trading-prod-symbol-lookup:latest"
+        REGISTRY_URL="${{ steps.login-ecr.outputs.registry }}"
+        FULL_IMAGE_TAG="$REGISTRY_URL/$IMAGE_TAG"
+        
+        docker buildx build --platform linux/amd64 --load -t $FULL_IMAGE_TAG .
+        docker push $FULL_IMAGE_TAG
 
     - name: Build and package Lambda 3
       run: |
@@ -128,8 +133,7 @@ jobs:
 
         aws lambda update-function-code \
           --function-name trading-prod-symbol-lookup \
-          --s3-bucket trading-lambda-deployment \
-          --s3-key lambda2_function.zip
+          --image-uri ${{ steps.login-ecr.outputs.registry }}/trading-prod-symbol-lookup:latest
         
         aws lambda update-function-code \
           --function-name trading-prod-coinbase \

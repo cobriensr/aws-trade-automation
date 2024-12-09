@@ -412,3 +412,29 @@ resource "aws_iam_role_policy" "coinbase_api_gateway_policy" {
     ]
   })
 }
+
+# Add ECR permissions to Lambda 2 role
+resource "aws_iam_role_policy" "lambda2_ecr" {
+  name = "${local.name_prefix}-lambda2-ecr"
+  role = aws_iam_role.lambda2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:BatchCheckLayerAvailability"
+        ]
+        Resource = aws_ecr_repository.lambda2.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda2_insights" {
+  role       = aws_iam_role.lambda2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy"
+}
