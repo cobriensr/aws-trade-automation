@@ -179,40 +179,50 @@ def handle_oanda_trade(
         )
         logger.info(f"Position check for {symbol}: {has_position}")
 
-        actions = {
-            (True, "LONG"): lambda: (
-                close_short_position(
-                    account_id=account, instrument=symbol, access_token=secret
-                ),
-                create_long_market_order(
-                    account_id=account, instrument=symbol, access_token=secret
-                ),
-            ),
-            (True, "SHORT"): lambda: (
-                close_long_position(
-                    account_id=account, instrument=symbol, access_token=secret
-                ),
-                create_short_market_order(
-                    account_id=account, instrument=symbol, access_token=secret
-                ),
-            ),
-            (False, "LONG"): lambda: create_long_market_order(
+        if has_position and signal_direction == "LONG":
+            # Close any existing short position first
+            close_short_position(
                 account_id=account, instrument=symbol, access_token=secret
-            ),
-            (False, "SHORT"): lambda: create_short_market_order(
+            )
+            # Create new long position and return its result
+            order_result = create_long_market_order(
                 account_id=account, instrument=symbol, access_token=secret
-            ),
-        }
+            )
 
-        action = actions.get((has_position, signal_direction))
-        if action:
-            action()
-            publish_metric("oanda_trade_success")
-            return {"status": "success", "message": "Order executed successfully"}
+        elif has_position and signal_direction == "SHORT":
+            # Close any existing long position first
+            close_long_position(
+                account_id=account, instrument=symbol, access_token=secret
+            )
+            # Create new short position and return its result
+            order_result = create_short_market_order(
+                account_id=account, instrument=symbol, access_token=secret
+            )
 
-        raise TradingWebhookError(
-            f"Invalid position/direction combination: {has_position}/{signal_direction}"
-        )
+        elif not has_position and signal_direction == "LONG":
+            # Simply create new long position and return its result
+            order_result = create_long_market_order(
+                account_id=account, instrument=symbol, access_token=secret
+            )
+
+        elif not has_position and signal_direction == "SHORT":
+            # Simply create new short position and return its result
+            order_result = create_short_market_order(
+                account_id=account, instrument=symbol, access_token=secret
+            )
+
+        else:
+            raise TradingWebhookError(
+                f"Invalid position/direction combination: {has_position}/{signal_direction}"
+            )
+
+        # Check if any errors occurred in the order result
+        if "error" in order_result or "errorText" in order_result:
+            error_msg = order_result.get("error") or order_result.get("errorText")
+            raise TradingWebhookError(f"Trade action failed: {error_msg}")
+
+        publish_metric("oanda_trade_success")
+        return order_result
 
     except Exception as e:
         publish_metric("oanda_trade_error")
