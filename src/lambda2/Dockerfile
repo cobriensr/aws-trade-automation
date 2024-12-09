@@ -53,8 +53,11 @@ RUN pip install --target . --no-cache-dir -r requirements.txt && \
     find . -name "sample*" -delete && \
     find . -name "example*" -delete && \
     find . -name "dataset*" -delete && \
-    find . -name "*.pkl" -delete
-
+    find . -name "*.pkl" -delete && \
+    # Remove specific large package components
+    find . -type d -name "pandas/tests" -not -path "/boto/" -exec rm -rf {} + && \
+    find . -type d -name "numpy/tests" -not -path "/boto/" -exec rm -rf {} + && \
+    find . -type d -name "numpy/doc" -not -path "/boto/*" -exec rm -rf {} +
 
 # Create deployment package
 RUN zip -r /lambda2_function.zip .
