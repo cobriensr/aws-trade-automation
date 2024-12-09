@@ -322,7 +322,13 @@ def handle_futures_trade(
             raise TradingWebhookError(f"Order placement failed: {error_msg}")
 
         publish_metric("futures_trade_success")
-        return {"status": "success", "message": "Futures trade executed successfully"}
+        return {
+            "status": "success",
+            "order_result": order_result,
+            "symbol": mapped_symbol,
+            "direction": "BUY" if signal_direction == "LONG" else "SELL"
+        }
+
 
     except Exception as e:
         publish_metric("futures_trade_error")
