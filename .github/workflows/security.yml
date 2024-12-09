@@ -1,5 +1,4 @@
 name: Security Scans
-
 on:
   pull_request:
     branches: [ main ]
@@ -11,12 +10,10 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * *'  # Daily scan
-
 permissions:
   security-events: write
   contents: read
   pull-requests: write
-
 jobs:
   security-scan:
     runs-on: ubuntu-latest
@@ -29,7 +26,7 @@ jobs:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-fs-results.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Run Trivy config scan
@@ -50,14 +47,13 @@ jobs:
           cd ../lambda3
           docker build -t lambda3-image .
 
-      # Split the image scanning into separate steps
       - name: Scan Lambda1 Docker image
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'image'
           image-ref: 'lambda1-image'
           format: 'sarif'
-          output: 'trivy-lambda1.sarif'
+          output: 'trivy-docker-lambda1.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Scan Lambda2 Docker image
@@ -66,7 +62,7 @@ jobs:
           scan-type: 'image'
           image-ref: 'lambda2-image'
           format: 'sarif'
-          output: 'trivy-lambda2.sarif'
+          output: 'trivy-docker-lambda2.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Scan Lambda3 Docker image
@@ -75,7 +71,7 @@ jobs:
           scan-type: 'image'
           image-ref: 'lambda3-image'
           format: 'sarif'
-          output: 'trivy-lambda3.sarif'
+          output: 'trivy-docker-lambda3.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Scan Python dependencies
@@ -92,23 +88,42 @@ jobs:
         run: |
           curl -L "$(curl -s https://api.github.com/repos/aquasecurity/tfsec/releases/latest | grep -o -E "https://.+?tfsec-linux-amd64")" > tfsec
           chmod +x tfsec
-          ./tfsec ./terraform --format=sarif > terraform-scan.sarif
+          ./tfsec ./terraform --format=sarif > trivy-terraform-scan.sarif
 
       - name: Upload scan results to Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: '*.sarif'
+          sarif_file: trivy-*.sarif
 
       - name: Create summary report
         if: github.event_name == 'pull_request'
         run: |
           echo "## Security Scan Summary" > summary.md
+          
           echo "### Trivy Filesystem Scan" >> summary.md
-          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-results.sarif >> summary.md
+          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-fs-results.sarif >> summary.md || echo "No filesystem vulnerabilities found"
+          
+          echo "### Trivy Configuration Scan" >> summary.md
+          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-config-results.sarif >> summary.md || echo "No configuration vulnerabilities found"
+          
           echo "### Docker Image Scans" >> summary.md
-          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-images.sarif >> summary.md
+          echo "#### Lambda1" >> summary.md
+          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-docker-lambda1.sarif >> summary.md || echo "No vulnerabilities found"
+          echo "#### Lambda2" >> summary.md
+          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-docker-lambda2.sarif >> summary.md || echo "No vulnerabilities found"
+          echo "#### Lambda3" >> summary.md
+          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-docker-lambda3.sarif >> summary.md || echo "No vulnerabilities found"
+          
           echo "### Terraform Scan" >> summary.md
-          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' terraform-scan.sarif >> summary.md
+          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-terraform-scan.sarif >> summary.md || echo "No Terraform vulnerabilities found"
+          
+          echo "### Python Dependencies Scan" >> summary.md
+          for dir in src/lambda*; do
+            if [ -f "$dir/safety-report.json" ]; then
+              echo "#### $dir" >> summary.md
+              jq -r '.[] | "- \(.dependency): \(.vulnerability)"' "$dir/safety-report.json" >> summary.md || echo "No Python vulnerabilities found"
+            fi
+          done
 
       - name: Comment PR
         if: github.event_name == 'pull_request'
