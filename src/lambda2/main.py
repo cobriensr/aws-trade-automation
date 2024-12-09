@@ -92,7 +92,7 @@ def get_historical_data_dict(api_key: str) -> Dict:
         logger.info(f"Fetching data for range: {data_start} to {data_end}")
 
         # Symbol mapping with versioning
-        symbol_mapping = {
+        databento_mapping = {
             "MES.n.0": "MES1!",  # E-Mini S&P 500
             "MNQ.n.0": "MNQ1!",  # E-Mini NASDAQ 100
             "YM.n.0": "YM1!",    # E-Mini Dow
@@ -101,7 +101,10 @@ def get_historical_data_dict(api_key: str) -> Dict:
             "GC.n.0": "GC1!",    # Gold
             "CL.n.0": "CL1!",    # Crude Oil
         }
-
+        
+        # Create reverse mapping for incoming symbols
+        symbol_mapping = {v: k for k, v in databento_mapping.items()}
+        
         # Initialize Databento client with timeout handling
         db_client = db.Historical(api_key)
         
