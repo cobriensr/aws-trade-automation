@@ -154,23 +154,25 @@ def get_position(token: str, instrument: str) -> Tuple[int, int, int]:
         )
         # Return JSON data from response
         response.raise_for_status()
-
-        # Get JSON data from response
-        data = response.json()
-
-        # If no positions found, return None values
-        if not data or len(data) == 0:
-            return None, None, None
-
-        # Take the first position if multiple exist
-        position = data[0]  # Access first element since it's a list
-
-        # Extract account ID, contract ID, and net position
-        account_id = position.get("accountId")
-        contract_id = position.get("contractId")
-        net_pos = position.get("netPos", 0)
-
-        return account_id, contract_id, net_pos
+        
+        # Get the positions
+        positions = response.json()
+        
+        # Check if there are any positions
+        if not positions:
+            logger.info(f"No positions found for {instrument}")
+            return None, None, 0
+            
+        # Get the most recent position (last in array)
+        current_position = positions[-1]
+        net_position = current_position['netPos']
+        
+        logger.info(f"Current position for {instrument}: {net_position} "
+            f"(netPos from most recent entry)")
+        
+        return (current_position['accountId'], 
+                current_position['contractId'], 
+                net_position)
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Error getting position: {str(e)}")

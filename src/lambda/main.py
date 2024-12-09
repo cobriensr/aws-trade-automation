@@ -276,8 +276,8 @@ def handle_futures_trade(
         )
 
         # Execute trading logic based on position and signal
-        if not all([account_id, contract_id, net_position]):
-            logger.info(f"No existing position found for {mapped_symbol}")
+        if net_position == 0:  # No active position
+            logger.info(f"No active position found for {mapped_symbol}")
             if signal_direction == "LONG":
                 logger.info(f"Opening new LONG position for {mapped_symbol}")
                 place_buy_order(
