@@ -65,18 +65,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "secretsmanager:GetSecretValue",
           "lambda:InvokeFunction"
         ]
-        Resource = [
-          "*",
-          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:trading-prod-symbol-lookup"
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = ["lambda:InvokeFunction"]
-        Resource = [
-          "${aws_lambda_function.symbol_lookup.arn}",
-          "${aws_lambda_function.coinbase.arn}"
-        ]
+        Resource = "*"
       }
     ]
   })
@@ -206,15 +195,9 @@ resource "aws_iam_role_policy" "lambda2_policy" {
           "ec2:CreateNetworkInterface",
           "ec2:DescribeNetworkInterfaces",
           "ec2:DeleteNetworkInterface",
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
           "lambda:InvokeFunction"
         ]
-        Resource = "${aws_lambda_function.main.arn}"
+        Resource = "*"
       }
     ]
   })

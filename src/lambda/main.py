@@ -1,5 +1,6 @@
 """Main Lambda function for tradingview webhooks."""
 
+import os
 import json
 import logging
 import time
@@ -122,31 +123,37 @@ def invoke_lambda_function(function_name: str, payload: Dict[str, Any] = None) -
     """Generic Lambda invocation with enhanced error handling"""
     start_time = time.time()
     try:
+        logger.info(f"Invoking Lambda function: {function_name}")
         response = lambda_client.invoke(
             FunctionName=function_name,
             InvocationType="RequestResponse",
-            Payload=json.dumps(payload) if payload else "{}",
+            Payload=json.dumps(payload) if payload else "{}"
         )
 
         duration = (time.time() - start_time) * 1000
         publish_metric(f"{function_name}_duration", duration, "Milliseconds")
 
         if response["StatusCode"] != 200:
-            raise TradingWebhookError(
-                f"Lambda invocation failed: {response['StatusCode']}"
-            )
+            logger.error(f"Lambda invocation failed with status code: {response['StatusCode']}")
+            raise TradingWebhookError(f"Lambda invocation failed: {response['StatusCode']}")
 
         payload = json.loads(response["Payload"].read())
         if "errorMessage" in payload:
-            raise TradingWebhookError(
-                f"Lambda execution failed: {payload['errorMessage']}"
-            )
+            logger.error(f"Lambda execution failed with error: {payload['errorMessage']}")
+            raise TradingWebhookError(f"Lambda execution failed: {payload['errorMessage']}")
 
+        logger.info(f"Successfully invoked Lambda function: {function_name}")
         return payload
 
-    except Exception as e:
+    except ClientError as e:
+        error_code = e.response['Error']['Code']
+        error_message = e.response['Error']['Message']
+        logger.error(f"AWS Lambda ClientError: {error_code} - {error_message}")
         publish_metric(f"{function_name}_error")
+        raise TradingWebhookError(f"Failed to invoke {function_name}: {error_code} - {error_message}") from e
+    except Exception as e:
         logger.error(f"Lambda invocation error: {str(e)}")
+        publish_metric(f"{function_name}_error")
         raise TradingWebhookError(f"Failed to invoke {function_name}: {str(e)}") from e
 
 
@@ -228,7 +235,8 @@ def handle_futures_trade(
         logger.info(f"Authenticated successfully, token expires: {expiration_time}")
 
         # Get symbol mapping
-        mapping_dict = invoke_lambda_function("symbol_lookup")
+        lambda2_function_name = os.environ['LAMBDA2_FUNCTION_NAME']
+        mapping_dict = invoke_lambda_function(lambda2_function_name)
         if symbol not in mapping_dict:
             raise TradingWebhookError(f"Symbol not found in mapping: {symbol}")
 
@@ -320,6 +328,13 @@ def lambda_handler(event, context) -> Dict:
     try:
         # Configure logging
         configure_logger(context)
+        
+        # Validate required environment variables
+        required_env_vars = ['LAMBDA2_FUNCTION_NAME']
+        missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+        if missing_vars:
+            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+
         logger.info(f"Processing request {request_id}")
         logger.debug(f"Event: {json.dumps(event, indent=2)}")
 
