@@ -50,13 +50,32 @@ jobs:
           cd ../lambda3
           docker build -t lambda3-image .
 
-      - name: Scan Docker images
+      # Split the image scanning into separate steps
+      - name: Scan Lambda1 Docker image
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'image'
-          image-ref: 'lambda1-image,lambda2-image,lambda3-image'
+          image-ref: 'lambda1-image'
           format: 'sarif'
-          output: 'trivy-images.sarif'
+          output: 'trivy-lambda1.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Scan Lambda2 Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          image-ref: 'lambda2-image'
+          format: 'sarif'
+          output: 'trivy-lambda2.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Scan Lambda3 Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          image-ref: 'lambda3-image'
+          format: 'sarif'
+          output: 'trivy-lambda3.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Scan Python dependencies
