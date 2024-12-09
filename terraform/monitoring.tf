@@ -77,10 +77,54 @@ resource "aws_cloudwatch_metric_alarm" "api_5xx_errors" {
   tags = local.common_tags
 }
 
-# SNS Topic for Alerts
+# KMS key for SNS encryption
+resource "aws_kms_key" "sns" {
+  description             = "KMS key for SNS topic encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow SNS to use the key"
+        Effect = "Allow"
+        Principal = {
+          Service = "sns.amazonaws.com"
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_kms_alias" "sns" {
+  name          = "alias/${local.name_prefix}-sns"
+  target_key_id = aws_kms_key.sns.key_id
+}
+
+
+# SNS Topic for Alerts with encryption
 resource "aws_sns_topic" "alerts" {
   name = "${local.name_prefix}-alerts"
-
+  
+  kms_master_key_id = aws_kms_key.sns.id  # Enable encryption using our KMS key
+  
   tags = local.common_tags
 }
 
