@@ -93,10 +93,11 @@ def get_historical_data_dict(api_key: str) -> Dict:
         # Get the previous business day
         today = datetime.now()
         previous_business_day = get_previous_business_day(today)
+        next_day = previous_business_day + timedelta(days=1)
         
-        # Use the same date for both start and end since we just want previous day's data
+        # Use previous business day as start and next day as end
         data_start = previous_business_day.strftime("%Y-%m-%d")
-        data_end = data_start  # Same as start date since we want just that day's data
+        data_end = next_day.strftime("%Y-%m-%d")
         
         logger.info(f"Fetching data for range: {data_start} to {data_end}")
 
