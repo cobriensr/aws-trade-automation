@@ -131,6 +131,7 @@ def get_cash_balance_snapshot(access_token: str, account_id: str) -> Dict:
         logger.error(f"JSON Decode Error: {e}")
         return {"error": "Could not parse response from server"}
 
+
 def get_contract_info(token: str, contract_ids: list[int]) -> List[Dict]:
     """
     Get contract information from Tradovate API.
@@ -150,10 +151,10 @@ def get_contract_info(token: str, contract_ids: list[int]) -> List[Dict]:
 
     # Make POST request to get contract info
     response = requests.get(
-        f"{DEMO}/contract/items", 
-        params={'ids': ','.join(str(id) for id in contract_ids)}, 
+        f"{DEMO}/contract/items",
+        params={"ids": ",".join(str(id) for id in contract_ids)},
         headers=headers,
-        timeout=10
+        timeout=10,
     )
 
     # Return JSON data from response
@@ -164,7 +165,9 @@ def get_contract_info(token: str, contract_ids: list[int]) -> List[Dict]:
 
     # Loop through contracts and get the names
     for contract in contract_response:
-        contract_names_with_ids.append({'contractId': contract['id'],'contractName': contract['name']})
+        contract_names_with_ids.append(
+            {"contractId": contract["id"], "contractName": contract["name"]}
+        )
 
     # Return the contract names
     return contract_names_with_ids
@@ -192,23 +195,28 @@ def get_all_positions(token: str, instrument: str) -> List[Dict]:
         )
         # Return JSON data from response
         response.raise_for_status()
-        
+
         # Get the positions
         positions = response.json()
-        
+
         # Check if there are any positions
         if not positions:
             logger.info(f"No positions found for {instrument}")
             return []
-        
+
         # Create list to hold positions that have a netPos <> 0
         net_positions = []
-        
+
         # loop through positions
         for position in positions:
-            if position['netPos'] != 0:
-                net_positions.append({'contractId': position['contractId'], 'accountId': position['accountId']})
-        
+            if position["netPos"] != 0:
+                net_positions.append(
+                    {
+                        "contractId": position["contractId"],
+                        "accountId": position["accountId"],
+                    }
+                )
+
         # Return all positions
         return net_positions
 

@@ -249,11 +249,9 @@ def handle_futures_trade(
         lambda2_function_name = os.environ["LAMBDA2_FUNCTION_NAME"]
         mapping_response = invoke_lambda_function(lambda2_function_name)
 
-        # Parse the response
         try:
             response_body = json.loads(mapping_response.get("body", "{}"))
             mapping_dict = response_body.get("data", {})
-
             logger.info(f"Received symbol mapping: {json.dumps(mapping_dict)}")
 
             if symbol not in mapping_dict:
@@ -270,38 +268,87 @@ def handle_futures_trade(
                 "Invalid symbol mapping response structure"
             ) from e
 
-        # Get contract and position
-        contract_and_account_ids = get_all_positions(
-            token=access_token, instrument=mapped_symbol
-        )
-        
-        # extract account id as it is the same for every contract
-        account_id = contract_and_account_ids[0]["accountId"]
-        
-        # loop through contracts to extract contract ids
-        contracts_ids = [contract["contractId"] for contract in contract_and_account_ids]
-        
-        # get the outstanding contracts
-        contract_names_with_ids = get_contract_info(token=access_token, contract_ids=contracts_ids)
+        # Get default account ID
+        account_id = get_accounts(access_token)
 
-        for contract in contract_names_with_ids:
-            # Execute trading logic based on position and signal
-            if mapped_symbol in contract['contractName']:
-                liquidate_position(
-                    contract_id=contract["contractId"], account_id=account_id, token=access_token
+        # Get current positions
+        positions = get_all_positions(access_token, mapped_symbol)
+
+        if positions:
+            logger.info(
+                f"Found existing positions for {mapped_symbol}, liquidating first"
+            )
+            contracts_ids = [position["contractId"] for position in positions]
+            contract_names_with_ids = get_contract_info(
+                token=access_token, contract_ids=contracts_ids
+            )
+
+            for contract in contract_names_with_ids:
+                if mapped_symbol in contract["contractName"]:
+                    liquidate_result = liquidate_position(
+                        contract_id=contract["contractId"],
+                        account_id=account_id,
+                        token=access_token,
+                    )
+                    logger.info(f"Liquidation result: {liquidate_result}")
+
+                    # Place new order after liquidation based on signal direction
+                    if signal_direction == "LONG":
+                        logger.info(
+                            f"Placing BUY order for {mapped_symbol} after liquidation"
+                        )
+                        order_result = place_buy_order(
+                            username=username,
+                            instrument=mapped_symbol,
+                            account_id=account_id,
+                            quantity=1,
+                            token=access_token,
+                        )
+                    else:  # signal_direction == "SHORT"
+                        logger.info(
+                            f"Placing SELL order for {mapped_symbol} after liquidation"
+                        )
+                        order_result = place_sell_order(
+                            username=username,
+                            instrument=mapped_symbol,
+                            account_id=account_id,
+                            quantity=1,
+                            token=access_token,
+                        )
+                    logger.info(
+                        f"Order placement result after liquidation: {order_result}"
+                    )
+        else:
+            # No positions found - place new order based on signal direction
+            if signal_direction == "LONG":
+                logger.info(
+                    f"No positions found - Placing new BUY order for {mapped_symbol}"
                 )
-                if signal_direction == "LONG":
-                    place_buy_order(
-                        username=username, instrument=mapped_symbol, account_id=account_id, quantity=1, token=access_token
-                    )
-                elif signal_direction == "SHORT":
-                    place_sell_order(
-                        username=username, instrument=mapped_symbol, account_id=account_id, quantity=1, token=access_token
-                    )
-        # Publish success metric
+                order_result = place_buy_order(
+                    username=username,
+                    instrument=mapped_symbol,
+                    account_id=account_id,
+                    quantity=1,
+                    token=access_token,
+                )
+            else:  # signal_direction == "SHORT"
+                logger.info(
+                    f"No positions found - Placing new SELL order for {mapped_symbol}"
+                )
+                order_result = place_sell_order(
+                    username=username,
+                    instrument=mapped_symbol,
+                    account_id=account_id,
+                    quantity=1,
+                    token=access_token,
+                )
+            logger.info(f"New order placement result: {order_result}")
+
+        if "error" in order_result or "errorText" in order_result:
+            error_msg = order_result.get("error") or order_result.get("errorText")
+            raise TradingWebhookError(f"Order placement failed: {error_msg}")
+
         publish_metric("futures_trade_success")
-        
-        # Return success message
         return {"status": "success", "message": "Futures trade executed successfully"}
 
     except Exception as e:
