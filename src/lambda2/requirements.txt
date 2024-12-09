@@ -1,4 +1,3 @@
 boto3
 databento
 psutil
-numpy
