@@ -78,16 +78,25 @@ def get_api_key() -> str:
         publish_metric('api_key_retrieval_error')
         raise SymbolLookupError(f"API key retrieval failed: {str(e)}") from e
 
+def get_previous_business_day(from_date: datetime) -> datetime:
+    """Get the previous business day (Mon-Fri)"""
+    previous_day = from_date - timedelta(days=1)
+    while previous_day.weekday() > 4:  # 5 is Saturday, 6 is Sunday
+        previous_day = previous_day - timedelta(days=1)
+    return previous_day
+
 def get_historical_data_dict(api_key: str) -> Dict:
     """Get historical data with comprehensive error handling and metrics"""
     start_time = time.time()
     
     try:
-        # Get date range
+        # Get the previous business day
         today = datetime.now()
-        yesterday = today - timedelta(days=2)
-        data_start = yesterday.strftime("%Y-%m-%d")
-        data_end = today.strftime("%Y-%m-%d")
+        previous_business_day = get_previous_business_day(today)
+        
+        # Use the same date for both start and end since we just want previous day's data
+        data_start = previous_business_day.strftime("%Y-%m-%d")
+        data_end = data_start  # Same as start date since we want just that day's data
         
         logger.info(f"Fetching data for range: {data_start} to {data_end}")
 
