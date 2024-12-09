@@ -143,25 +143,38 @@ def get_position(token: str, instrument: str) -> Tuple[int, int, int]:
     Returns:
         dict: JSON response containing position information
     """
-    # Set headers
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {token}",
-    }
-    # Make GET request to get position list
-    response = requests.get(
-        f"{DEMO}/position/list?name={instrument}", headers=headers, timeout=5
-    )
-    # Return JSON data from response
-    data = response.json()
-    if len(data) > 0:
-        # Extract account ID, contract ID, and net position
-        account_id = data["accountId"]
-        contract_id = data["contractId"]
-        net_position = data["netPos"]
-        # Return account ID, contract ID, and net position
-        return account_id, contract_id, net_position
-    return None, None, None
+    try:
+        # Set headers
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+        # Make GET request to get position list
+        response = requests.get(
+            f"{DEMO}/position/list?name={instrument}", headers=headers, timeout=5
+        )
+        # Return JSON data from response
+        response.raise_for_status()
+        
+        # Get JSON data from response
+        data = response.json()
+        
+        # If no positions found, return None values
+        if not data or len(data) == 0:
+            return None, None, None
+            
+        # Take the first position if multiple exist
+        position = data[0]  # Access first element since it's a list
+        
+        account_id = position.get("accountId")
+        contract_id = position.get("contractId")
+        net_pos = position.get("netPos", 0)
+        
+        return account_id, contract_id, net_pos
+            
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error getting position: {str(e)}")
+        return None, None, None
 
 
 def liquidate_position(contract_id: str, account_id: str, token: str) -> Dict:
