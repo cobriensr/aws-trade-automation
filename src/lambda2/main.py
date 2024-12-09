@@ -102,9 +102,6 @@ def get_historical_data_dict(api_key: str) -> Dict:
             "CL.n.0": "CL1!",    # Crude Oil
         }
         
-        # Create reverse mapping for incoming symbols
-        symbol_mapping = {v: k for k, v in databento_mapping.items()}
-        
         # Initialize Databento client with timeout handling
         db_client = db.Historical(api_key)
         
@@ -114,7 +111,7 @@ def get_historical_data_dict(api_key: str) -> Dict:
                 dataset="GLBX.MDP3",
                 schema="definition",
                 stype_in="continuous",
-                symbols=list(symbol_mapping.keys()),
+                symbols=list(databento_mapping.keys()),  # Use Databento symbols (GC.n.0 etc)
                 start=data_start,
                 end=data_end,
             ).to_df()
@@ -143,9 +140,9 @@ def get_historical_data_dict(api_key: str) -> Dict:
         if pivoted.empty:
             raise SymbolLookupError("Failed to process symbol data")
             
-        # Get latest data and map symbols
+        # Get latest data and map symbols correctly
         latest_data = pivoted.iloc[-1].to_dict()
-        result = {symbol_mapping[k]: v for k, v in latest_data.items()}
+        result = {databento_mapping[k]: v for k, v in latest_data.items()}
         
         # Validate result
         if not result:
