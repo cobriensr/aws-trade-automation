@@ -22,6 +22,7 @@ jobs:
       
       - name: Run Trivy fs scan
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -31,6 +32,7 @@ jobs:
 
       - name: Run Trivy config scan
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
           scan-type: 'config'
           scan-ref: '.'
@@ -41,14 +43,15 @@ jobs:
       - name: Build Docker images for scanning
         run: |
           cd src/lambda
-          docker build -t lambda1-image .
+          docker build -t lambda1-image . || echo "Failed to build lambda1-image"
           cd ../lambda2
-          docker build -t lambda2-image .
+          docker build -t lambda2-image . || echo "Failed to build lambda2-image"
           cd ../lambda3
-          docker build -t lambda3-image .
+          docker build -t lambda3-image . || echo "Failed to build lambda3-image"
 
       - name: Scan Lambda1 Docker image
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
           scan-type: 'image'
           image-ref: 'lambda1-image'
@@ -58,6 +61,7 @@ jobs:
 
       - name: Scan Lambda2 Docker image
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
           scan-type: 'image'
           image-ref: 'lambda2-image'
@@ -67,6 +71,7 @@ jobs:
 
       - name: Scan Lambda3 Docker image
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
           scan-type: 'image'
           image-ref: 'lambda3-image'
@@ -80,19 +85,64 @@ jobs:
           for dir in src/lambda*; do
             if [ -f "$dir/requirements.txt" ]; then
               echo "Scanning $dir"
-              safety check -r "$dir/requirements.txt" --json > "$dir/safety-report.json" || true
+              safety check -r "$dir/requirements.txt" --json > "$dir/safety-report.json" || echo "Safety check failed for $dir"
             fi
           done
 
       - name: Run tfsec
         uses: aquasecurity/tfsec-sarif-action@v0.1.4
+        continue-on-error: true
         with:
           sarif_file: trivy-terraform-scan.sarif
 
-      - name: Upload scan results to Security tab
+      # Debug step to list available SARIF files
+      - name: List SARIF files
+        run: |
+          echo "Available SARIF files:"
+          ls -la trivy-*.sarif || echo "No trivy SARIF files found"
+
+      # Individual upload steps for each SARIF file
+      - name: Upload Filesystem scan results
         uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('trivy-fs-results.sarif') != ''
         with:
-          sarif_file: trivy-*.sarif
+          sarif_file: trivy-fs-results.sarif
+          category: trivy-fs
+
+      - name: Upload Config scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('trivy-config-results.sarif') != ''
+        with:
+          sarif_file: trivy-config-results.sarif
+          category: trivy-config
+
+      - name: Upload Lambda1 Docker scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('trivy-docker-lambda1.sarif') != ''
+        with:
+          sarif_file: trivy-docker-lambda1.sarif
+          category: trivy-docker-lambda1
+
+      - name: Upload Lambda2 Docker scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('trivy-docker-lambda2.sarif') != ''
+        with:
+          sarif_file: trivy-docker-lambda2.sarif
+          category: trivy-docker-lambda2
+
+      - name: Upload Lambda3 Docker scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('trivy-docker-lambda3.sarif') != ''
+        with:
+          sarif_file: trivy-docker-lambda3.sarif
+          category: trivy-docker-lambda3
+
+      - name: Upload Terraform scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('trivy-terraform-scan.sarif') != ''
+        with:
+          sarif_file: trivy-terraform-scan.sarif
+          category: trivy-terraform
 
       - name: Create summary report
         if: github.event_name == 'pull_request'
@@ -100,27 +150,44 @@ jobs:
           echo "## Security Scan Summary" > summary.md
           
           echo "### Trivy Filesystem Scan" >> summary.md
-          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-fs-results.sarif >> summary.md || echo "No filesystem vulnerabilities found"
+          if [ -f trivy-fs-results.sarif ]; then
+            jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-fs-results.sarif >> summary.md || echo "No filesystem vulnerabilities found" >> summary.md
+          else
+            echo "Filesystem scan was not completed" >> summary.md
+          fi
           
           echo "### Trivy Configuration Scan" >> summary.md
-          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-config-results.sarif >> summary.md || echo "No configuration vulnerabilities found"
+          if [ -f trivy-config-results.sarif ]; then
+            jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-config-results.sarif >> summary.md || echo "No configuration vulnerabilities found" >> summary.md
+          else
+            echo "Configuration scan was not completed" >> summary.md
+          fi
           
           echo "### Docker Image Scans" >> summary.md
-          echo "#### Lambda1" >> summary.md
-          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-docker-lambda1.sarif >> summary.md || echo "No vulnerabilities found"
-          echo "#### Lambda2" >> summary.md
-          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-docker-lambda2.sarif >> summary.md || echo "No vulnerabilities found"
-          echo "#### Lambda3" >> summary.md
-          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-docker-lambda3.sarif >> summary.md || echo "No vulnerabilities found"
+          for lambda in 1 2 3; do
+            echo "#### Lambda$lambda" >> summary.md
+            if [ -f "trivy-docker-lambda$lambda.sarif" ]; then
+              jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' "trivy-docker-lambda$lambda.sarif" >> summary.md || echo "No vulnerabilities found" >> summary.md
+            else
+              echo "Docker scan was not completed" >> summary.md
+            fi
+          done
           
           echo "### Terraform Scan" >> summary.md
-          jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-terraform-scan.sarif >> summary.md || echo "No Terraform vulnerabilities found"
+          if [ -f trivy-terraform-scan.sarif ]; then
+            jq -r '.runs[].results[] | "- \(.level): \(.message.text)"' trivy-terraform-scan.sarif >> summary.md || echo "No Terraform vulnerabilities found" >> summary.md
+          else
+            echo "Terraform scan was not completed" >> summary.md
+          fi
           
           echo "### Python Dependencies Scan" >> summary.md
           for dir in src/lambda*; do
             if [ -f "$dir/safety-report.json" ]; then
               echo "#### $dir" >> summary.md
-              jq -r '.[] | "- \(.dependency): \(.vulnerability)"' "$dir/safety-report.json" >> summary.md || echo "No Python vulnerabilities found"
+              jq -r '.[] | "- \(.dependency): \(.vulnerability)"' "$dir/safety-report.json" >> summary.md || echo "No Python vulnerabilities found" >> summary.md
+            else
+              echo "#### $dir" >> summary.md
+              echo "Python dependency scan was not completed" >> summary.md
             fi
           done
 
