@@ -148,12 +148,12 @@ def get_contract_info(token: str, contract_ids: list[int]) -> List[Dict]:
         "Authorization": f"Bearer {token}",
     }
 
-    # Convert contract IDs to string
-    ids_param = ','.join(str(id) for id in contract_ids)
-
     # Make POST request to get contract info
     response = requests.get(
-        f"{DEMO}/contract/items?{ids_param}", headers=headers, timeout=10
+        f"{DEMO}/contract/items", 
+        params={'ids': ','.join(str(id) for id in contract_ids)}, 
+        headers=headers,
+        timeout=10
     )
 
     # Return JSON data from response
