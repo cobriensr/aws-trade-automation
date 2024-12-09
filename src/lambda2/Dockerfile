@@ -15,49 +15,46 @@ RUN pip install --upgrade pip setuptools wheel
 
 # Install packages and perform aggressive cleanup
 RUN pip install --target . --no-cache-dir -r requirements.txt && \
-    # Remove all test/example/doc directories
+# Perform cleanup while preserving necessary files
     find . -type d -name "tests" -not -path "*/boto*/*" -not -path "*/numpy/*" -exec rm -rf {} + && \
-    find . -type d -name "test" -not -path "*/boto*/*"  -not -path "*/numpy/*"-exec rm -rf {} + && \
+    find . -type d -name "test" -not -path "*/boto*/*" -not -path "*/numpy/*" -exec rm -rf {} + && \
     find . -type d -name "*test*" -not -path "*/boto*/*" -not -path "*/numpy/*" -exec rm -rf {} + && \
-    find . -type d -name "examples" -not -path "*/boto*/*" -exec rm -rf {} + && \
-    find . -type d -name "*.dist-info" -not -path "*/boto*/*" -exec rm -rf {} + && \
-    find . -type d -name "docs" -not -path "*/boto*/*" -exec rm -rf {} + && \
-    find . -type d -name "doc" -not -path "*/boto*/*" -exec rm -rf {} + && \
-    find . -type d -name "*docs*" -not -path "*/boto*/*" -exec rm -rf {} + && \
-    find . -type d -name "documentation" -not -path "*/boto*/*" -exec rm -rf {} + && \
-    find . -type d -name "locale" -not -path "*/boto*/*" -exec rm -rf {} + && \
-    find . -type d -name "locales" -not -path "*/boto*/*" -exec rm -rf {} + && \
-    # Remove development files
-    find . -name "*.c" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -delete && \
-    find . -name "*.h" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -delete && \
-    find . -name "*.pxd" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -delete && \
-    find . -name "*.pyx" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -delete && \
-    find . -name "*.so.*" -not -path "*/boto*/*" -delete && \
-    find . -name "*.pyi" -not -path "*/boto*/*" -delete && \
-    find . -name "*.pyc" -not -path "*/boto*/*" -delete && \
-    find . -name "*.pyo" -not -path "*/boto*/*" -delete && \
-    find . -name "*.egg-info" -not -path "*/boto*/*" -exec rm -rf {} + && \
+    find . -type d -name "examples" -exec rm -rf {} + && \
+    find . -type d -name "docs" -exec rm -rf {} + && \
+    find . -type d -name "doc" -exec rm -rf {} + && \
+    find . -type d -name "*docs*" -exec rm -rf {} + && \
+    find . -type d -name "documentation" -exec rm -rf {} + && \
+    find . -type d -name "locale" -exec rm -rf {} + && \
+    # Remove unnecessary files while preserving critical ones
+    find . -name "*.c" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
+    find . -name "*.h" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
+    find . -name "*.pxd" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
+    find . -name "*.pyx" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
+    find . -name "*.pyi" -delete && \
+    find . -name "*.pyc" -delete && \
+    find . -name "*.pyo" -delete && \
+    find . -name "*.egg-info" -exec rm -rf {} + && \
     # Remove documentation files
-    find . -name "README*" -not -path "*/boto*/*" -delete && \
-    find . -name "readme*" -not -path "*/boto*/*" -delete && \
-    find . -name "CHANGELOG*" -not -path "*/boto*/*" -delete && \
-    find . -name "AUTHORS*" -not -path "*/boto*/*" -delete && \
-    find . -name "CONTRIBUTING*" -not -path "*/boto*/*" -delete && \
-    find . -name "LICENSE*" -not -path "*/boto*/*" -delete && \
-    find . -name "*.md" -not -path "*/boto*/*" -delete && \
-    find . -name "*.rst" -not -path "*/boto*/*" -delete && \
-    # Remove cache and build artifacts
-    find . -name "__pycache__" -not -path "*/boto*/*" -exec rm -rf {} + && \
+    find . -name "README*" -delete && \
+    find . -name "CHANGELOG*" -delete && \
+    find . -name "AUTHORS*" -delete && \
+    find . -name "CONTRIBUTING*" -delete && \
+    find . -name "LICENSE*" -delete && \
+    find . -name "*.md" -delete && \
+    find . -name "*.rst" -delete && \
+    # Remove cache
+    find . -name "__pycache__" -exec rm -rf {} + && \
     # Remove data files
-    find . -name "*.csv" -not -path "*/boto*/*" -delete && \
-    find . -name "*.json" -not -path "*/boto*/*" -delete && \
-    find . -name "*.yaml" -not -path "*/boto*/*" -delete && \
-    find . -name "*.xml" -not -path "*/boto*/*" -delete && \
-    find . -name "*.ipynb" -not -path "*/boto*/*" -delete && \
-    find . -name "sample*" -not -path "*/boto*/*" -delete && \
-    find . -name "example*" -not -path "*/boto*/*" -delete && \
-    find . -name "dataset*" -not -path "*/boto*/*" -delete && \
-    find . -name "*.pkl" -not -path "*/boto*/*" -delete
+    find . -name "*.csv" -delete && \
+    find . -name "*.json" -delete && \
+    find . -name "*.yaml" -delete && \
+    find . -name "*.xml" -delete && \
+    find . -name "*.ipynb" -delete && \
+    find . -name "sample*" -delete && \
+    find . -name "example*" -delete && \
+    find . -name "dataset*" -delete && \
+    find . -name "*.pkl" -delete
+
 
 # Create deployment package
 RUN zip -r /lambda2_function.zip .
