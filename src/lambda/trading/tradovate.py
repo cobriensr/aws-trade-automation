@@ -1,7 +1,7 @@
 """Tradovate Utility Functions"""
 
 import logging
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, List
 from datetime import datetime
 import requests
 
@@ -131,8 +131,46 @@ def get_cash_balance_snapshot(access_token: str, account_id: str) -> Dict:
         logger.error(f"JSON Decode Error: {e}")
         return {"error": "Could not parse response from server"}
 
+def get_contract_info(token: str, contract_ids: list[int]) -> List[Dict]:
+    """
+    Get contract information from Tradovate API.
 
-def get_position(token: str, instrument: str) -> Tuple[int, int, int]:
+    Args:
+        token (str): The authentication token for API access
+        ids (list[int]): The contract IDs to get information for
+
+    Returns:
+        dict: JSON response containing contract information
+    """
+    # Set headers
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+
+    # Convert contract IDs to string
+    ids_param = ','.join(str(id) for id in contract_ids)
+
+    # Make POST request to get contract info
+    response = requests.post(
+        f"{DEMO}/contract/items?{ids_param}", headers=headers, timeout=10
+    )
+
+    # Return JSON data from response
+    contract_response = response.json()
+
+    # Create name list to hold contract names
+    contract_names_with_ids = []
+
+    # Loop through contracts and get the names
+    for contract in contract_response:
+        contract_names_with_ids.append({'contractId': contract['id'],'contractName': contract['name']})
+
+    # Return the contract names
+    return contract_names_with_ids
+
+
+def get_all_positions(token: str, instrument: str) -> List[Dict]:
     """
     Get list of all positions from Tradovate API.
 
@@ -161,22 +199,22 @@ def get_position(token: str, instrument: str) -> Tuple[int, int, int]:
         # Check if there are any positions
         if not positions:
             logger.info(f"No positions found for {instrument}")
-            return None, None, 0
-            
-        # Get the most recent position (last in array)
-        current_position = positions[-1]
-        net_position = current_position['netPos']
+            return []
         
-        logger.info(f"Current position for {instrument}: {net_position} "
-            f"(netPos from most recent entry)")
+        # Create list to hold positions that have a netPos <> 0
+        net_positions = []
         
-        return (current_position['accountId'], 
-                current_position['contractId'], 
-                net_position)
+        # loop through positions
+        for position in positions:
+            if position['netPos'] != 0:
+                net_positions.append({'contractId': position['contractId'], 'accountId': position['accountId']})
+        
+        # Return all positions
+        return net_positions
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Error getting position: {str(e)}")
-        return None, None, None
+        return []
 
 
 def liquidate_position(contract_id: str, account_id: str, token: str) -> Dict:

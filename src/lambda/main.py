@@ -20,7 +20,8 @@ from trading.oanda import (
 )
 from trading.tradovate import (
     get_auth_token,
-    get_position,
+    get_all_positions,
+    get_contract_info,
     get_accounts,
     get_cash_balance_snapshot,
     liquidate_position,
@@ -269,73 +270,38 @@ def handle_futures_trade(
                 "Invalid symbol mapping response structure"
             ) from e
 
-        # Get account and position
-        account = get_accounts(access_token)
-        account_id, contract_id, net_position = get_position(
+        # Get contract and position
+        contract_and_account_ids = get_all_positions(
             token=access_token, instrument=mapped_symbol
         )
+        
+        # extract account id as it is the same for every contract
+        account_id = contract_and_account_ids[0]["accountId"]
+        
+        # loop through contracts to extract contract ids
+        contracts_ids = [contract["id"] for contract in contract_and_account_ids]
+        
+        # get the outstanding contracts
+        contract_names_with_ids = get_contract_info(token=access_token, contract_ids=contracts_ids)
 
-        # Execute trading logic based on position and signal
-        if net_position == 0:  # No active position
-            logger.info(f"No active position found for {mapped_symbol}")
-            if signal_direction == "LONG":
-                logger.info(f"Opening new LONG position for {mapped_symbol}")
-                place_buy_order(
-                    username=username,
-                    instrument=mapped_symbol,
-                    account_id=account,
-                    quantity=1,
-                    token=access_token,
-                )
-            if signal_direction == "SHORT":
-                logger.info(f"Opening new SHORT position for {mapped_symbol}")
-                place_sell_order(
-                    username=username,
-                    instrument=mapped_symbol,
-                    account_id=account,
-                    quantity=1,
-                    token=access_token,
-                )
-        elif net_position > 0:
-            logger.info(f"Existing LONG position found for {mapped_symbol}")
-            if signal_direction == "SHORT":
-                logger.info(
-                    f"Liquidating LONG position and opening SHORT for {mapped_symbol}"
-                )
+        for contract in contract_names_with_ids:
+            # Execute trading logic based on position and signal
+            if mapped_symbol in contract['name']:
                 liquidate_position(
-                    contract_id=contract_id, account_id=account_id, token=access_token
+                    contract_id=contract['id'], account_id=account_id, token=access_token
                 )
-                place_sell_order(
-                    username=username,
-                    instrument=mapped_symbol,
-                    account_id=account,
-                    quantity=1,
-                    token=access_token,
-                )
-            if signal_direction == "LONG":
-                logger.info(f"LONG position already exists for {mapped_symbol}")
-                return {"status": "skipped", "message": "Position already exists"}
-        elif net_position < 0:
-            logger.info(f"Existing SHORT position found for {mapped_symbol}")
-            if signal_direction == "LONG":
-                logger.info(
-                    f"Liquidating SHORT position and opening LONG for {mapped_symbol}"
-                )
-                liquidate_position(
-                    contract_id=contract_id, account_id=account_id, token=access_token
-                )
-                place_buy_order(
-                    username=username,
-                    instrument=mapped_symbol,
-                    account_id=account,
-                    quantity=1,
-                    token=access_token,
-                )
-            if signal_direction == "SHORT":
-                logger.info(f"SHORT position already exists for {mapped_symbol}")
-                return {"status": "skipped", "message": "Position already exists"}
-
+                if signal_direction == "LONG":
+                    place_buy_order(
+                        username=username, instrument=mapped_symbol, account_id=account_id, quantity=1, token=access_token
+                    )
+                elif signal_direction == "SHORT":
+                    place_sell_order(
+                        username=username, instrument=mapped_symbol, account_id=account_id, quantity=1, token=access_token
+                    )
+        # Publish success metric
         publish_metric("futures_trade_success")
+        
+        # Return success message
         return {"status": "success", "message": "Futures trade executed successfully"}
 
     except Exception as e:
