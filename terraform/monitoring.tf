@@ -122,9 +122,9 @@ resource "aws_kms_alias" "sns" {
 # SNS Topic for Alerts with encryption
 resource "aws_sns_topic" "alerts" {
   name = "${local.name_prefix}-alerts"
-  
-  kms_master_key_id = aws_kms_key.sns.id  # Enable encryption using our KMS key
-  
+
+  kms_master_key_id = aws_kms_key.sns.id # Enable encryption using our KMS key
+
   tags = local.common_tags
 }
 
@@ -477,4 +477,11 @@ resource "aws_cloudwatch_metric_alarm" "lambda3_invocation_failures" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   tags = local.common_tags
+}
+
+# Create a CloudWatch log group for the flow logs
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/aws/vpc/${local.name_prefix}-vpc-flow-logs"
+  retention_in_days = 30
+  tags              = local.common_tags
 }

@@ -438,3 +438,159 @@ resource "aws_iam_role_policy_attachment" "lambda2_insights" {
   role       = aws_iam_role.lambda2_role.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy"
 }
+
+# Create IAM role for VPC Flow Logs
+resource "aws_iam_role" "vpc_flow_logs" {
+  name = "${local.name_prefix}-vpc-flow-logs"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "vpc-flow-logs.amazonaws.com"
+      }
+    }]
+  })
+
+  tags = local.common_tags
+}
+
+# Create IAM role policy for VPC Flow Logs
+resource "aws_iam_role_policy" "vpc_flow_logs" {
+  name = "${local.name_prefix}-vpc-flow-logs"
+  role = aws_iam_role.vpc_flow_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Effect   = "Allow"
+        Resource = "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:*"
+      }
+    ]
+  })
+}
+
+# Add KMS permissions to lambda_policy for the main Lambda role
+resource "aws_iam_role_policy" "lambda_kms" {
+  name = "${local.name_prefix}-lambda-kms"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.rds.arn
+      }
+    ]
+  })
+}
+
+# Add KMS permissions for Lambda2 role
+resource "aws_iam_role_policy" "lambda2_kms" {
+  name = "${local.name_prefix}-lambda2-kms"
+  role = aws_iam_role.lambda2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.rds.arn
+      }
+    ]
+  })
+}
+
+# Add KMS permissions for Lambda3 role
+resource "aws_iam_role_policy" "lambda3_kms" {
+  name = "${local.name_prefix}-lambda3-kms"
+  role = aws_iam_role.lambda3_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.rds.arn
+      }
+    ]
+  })
+}
+
+# Add Secrets Manager permissions to lambda roles
+resource "aws_iam_role_policy" "lambda_secrets" {
+  name = "${local.name_prefix}-secrets"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = aws_secretsmanager_secret.rds_password.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "lambda2_secrets" {
+  name = "${local.name_prefix}-secrets"
+  role = aws_iam_role.lambda2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = aws_secretsmanager_secret.rds_password.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "lambda3_secrets" {
+  name = "${local.name_prefix}-secrets"
+  role = aws_iam_role.lambda3_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = aws_secretsmanager_secret.rds_password.arn
+      }
+    ]
+  })
+}
