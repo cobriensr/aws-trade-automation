@@ -279,7 +279,7 @@ def handle_futures_trade(
         account_id = contract_and_account_ids[0]["accountId"]
         
         # loop through contracts to extract contract ids
-        contracts_ids = [contract["id"] for contract in contract_and_account_ids]
+        contracts_ids = [contract["contractId"] for contract in contract_and_account_ids]
         
         # get the outstanding contracts
         contract_names_with_ids = get_contract_info(token=access_token, contract_ids=contracts_ids)
@@ -288,7 +288,7 @@ def handle_futures_trade(
             # Execute trading logic based on position and signal
             if mapped_symbol in contract['name']:
                 liquidate_position(
-                    contract_id=contract['id'], account_id=account_id, token=access_token
+                    contract_id=contract["contractId"], account_id=account_id, token=access_token
                 )
                 if signal_direction == "LONG":
                     place_buy_order(
