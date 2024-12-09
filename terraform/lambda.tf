@@ -14,6 +14,9 @@ resource "aws_lambda_function" "main" {
 
   environment {
     variables = {
+      AWS_LAMBDA_FUNCTION_TIMEOUT = "30"
+      AWS_LAMBDA_INITIALIZATION_TYPE = "provisioned-concurrency"
+      AWS_LAMBDA_INITIALIZATION_TIMEOUT = "25"
       FUNCTION_NAME         = "${local.name_prefix}-function"
       OANDA_SECRET          = "${data.aws_ssm_parameter.oanda_secret.value}"
       OANDA_ACCOUNT         = "${data.aws_ssm_parameter.oanda_account.value}"
@@ -51,6 +54,9 @@ resource "aws_lambda_function" "symbol_lookup" {
 
   environment {
     variables = {
+      AWS_LAMBDA_FUNCTION_TIMEOUT = "30"
+      AWS_LAMBDA_INITIALIZATION_TYPE = "provisioned-concurrency"
+      AWS_LAMBDA_INITIALIZATION_TIMEOUT = "25"
       FUNCTION_NAME     = "${local.name_prefix}-symbol-lookup"
       DATABENTO_API_KEY = data.aws_ssm_parameter.databento_key.value
     }
@@ -84,6 +90,9 @@ resource "aws_lambda_function" "coinbase" {
 
   environment {
     variables = {
+      AWS_LAMBDA_FUNCTION_TIMEOUT = "30"
+      AWS_LAMBDA_INITIALIZATION_TYPE = "provisioned-concurrency"
+      AWS_LAMBDA_INITIALIZATION_TIMEOUT = "25"
       FUNCTION_NAME         = "${local.name_prefix}-coinbase"
       COINBASE_API_KEY_NAME = "${data.aws_ssm_parameter.coinbase_api_key_name.value}"
       COINBASE_PRIVATE_KEY  = "${data.aws_ssm_parameter.coinbase_private_key.value}"

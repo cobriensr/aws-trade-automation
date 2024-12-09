@@ -85,7 +85,7 @@ def get_historical_data_dict(api_key: str) -> Dict:
     try:
         # Get date range
         today = datetime.now()
-        yesterday = today - timedelta(days=1)
+        yesterday = today - timedelta(days=2)
         data_start = yesterday.strftime("%Y-%m-%d")
         data_end = today.strftime("%Y-%m-%d")
         
