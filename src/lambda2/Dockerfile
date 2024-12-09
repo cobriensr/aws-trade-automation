@@ -16,9 +16,9 @@ RUN pip install --upgrade pip setuptools wheel
 # Install packages and perform aggressive cleanup
 RUN pip install --target . --no-cache-dir -r requirements.txt && \
     # Remove all test/example/doc directories
-    find . -type d -name "tests" -not -path "*/boto*/*" -exec rm -rf {} + && \
-    find . -type d -name "test" -not -path "*/boto*/*" -exec rm -rf {} + && \
-    find . -type d -name "*test*" -not -path "*/boto*/*" -exec rm -rf {} + && \
+    find . -type d -name "tests" -not -path "*/boto*/*" -not -path "*/numpy/*" -exec rm -rf {} + && \
+    find . -type d -name "test" -not -path "*/boto*/*"  -not -path "*/numpy/*"-exec rm -rf {} + && \
+    find . -type d -name "*test*" -not -path "*/boto*/*" -not -path "*/numpy/*" -exec rm -rf {} + && \
     find . -type d -name "examples" -not -path "*/boto*/*" -exec rm -rf {} + && \
     find . -type d -name "*.dist-info" -not -path "*/boto*/*" -exec rm -rf {} + && \
     find . -type d -name "docs" -not -path "*/boto*/*" -exec rm -rf {} + && \
@@ -28,10 +28,10 @@ RUN pip install --target . --no-cache-dir -r requirements.txt && \
     find . -type d -name "locale" -not -path "*/boto*/*" -exec rm -rf {} + && \
     find . -type d -name "locales" -not -path "*/boto*/*" -exec rm -rf {} + && \
     # Remove development files
-    find . -name "*.c" -not -path "*/boto*/*" -delete && \
-    find . -name "*.h" -not -path "*/boto*/*" -delete && \
-    find . -name "*.pxd" -not -path "*/boto*/*" -delete && \
-    find . -name "*.pyx" -not -path "*/boto*/*" -delete && \
+    find . -name "*.c" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
+    find . -name "*.h" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
+    find . -name "*.pxd" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
+    find . -name "*.pyx" -not -path "*/boto*/*" -not -path "*/numpy/core/*" -not -path "*/numpy/random/*" -delete && \
     find . -name "*.so.*" -not -path "*/boto*/*" -delete && \
     find . -name "*.pyi" -not -path "*/boto*/*" -delete && \
     find . -name "*.pyc" -not -path "*/boto*/*" -delete && \
