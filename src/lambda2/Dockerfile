@@ -10,6 +10,9 @@ WORKDIR /function
 COPY main.py .
 COPY requirements.txt .
 
+# Update pip and setuptools
+RUN pip install --upgrade pip setuptools wheel
+
 # Install packages and perform aggressive cleanup
 RUN pip install --target . --no-cache-dir -r requirements.txt && \
     # Remove all test/example/doc directories
