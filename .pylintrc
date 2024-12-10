@@ -14,4 +14,5 @@ disable=
     R0911,  # too-many-return-statements
     R0912,  # too-many-branches
     R0913,  # too-many-arguments
-    R0915   # too-many-statements
+    R0915,  # too-many-statements
+    R1702,  # too-many-locals
