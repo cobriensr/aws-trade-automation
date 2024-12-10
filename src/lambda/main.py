@@ -128,7 +128,7 @@ def invoke_lambda_function(function_name: str, payload: Dict[str, Any] = None) -
         response = lambda_client.invoke(
             FunctionName=function_name,
             InvocationType="RequestResponse",
-            Payload=json.dumps(payload) if payload else "{}"
+            Payload=json.dumps(payload) if payload else "{}",
         )
 
         duration = (time.time() - start_time) * 1000
@@ -136,8 +136,12 @@ def invoke_lambda_function(function_name: str, payload: Dict[str, Any] = None) -
 
         # Check Lambda invocation status
         if response["StatusCode"] != 200:
-            logger.error(f"Lambda invocation failed with status code: {response['StatusCode']}")
-            raise TradingWebhookError(f"Lambda invocation failed: {response['StatusCode']}")
+            logger.error(
+                f"Lambda invocation failed with status code: {response['StatusCode']}"
+            )
+            raise TradingWebhookError(
+                f"Lambda invocation failed: {response['StatusCode']}"
+            )
 
         # Parse the payload
         payload_str = response["Payload"].read()
@@ -158,7 +162,7 @@ def invoke_lambda_function(function_name: str, payload: Dict[str, Any] = None) -
         if isinstance(payload, dict):
             status_code = payload.get("statusCode")
             body = payload.get("body")
-            
+
             # Log the complete response for debugging
             logger.debug(f"Lambda response - Status: {status_code}, Body: {body}")
 
@@ -167,25 +171,28 @@ def invoke_lambda_function(function_name: str, payload: Dict[str, Any] = None) -
                 if status_code >= 400:
                     # Parse the error message from the body
                     try:
-                        error_details = json.loads(body) if isinstance(body, str) else body
+                        error_details = (
+                            json.loads(body) if isinstance(body, str) else body
+                        )
                         error_msg = error_details.get("error", "Unknown error")
                         details = error_details.get("details", "")
                         request_id = error_details.get("request_id", "")
-                        
-                        logger.error(f"Lambda returned error status {status_code}: {error_msg}")
+
+                        logger.error(
+                            f"Lambda returned error status {status_code}: {error_msg}"
+                        )
                         if details:
                             logger.error(f"Error details: {details}")
                         if request_id:
                             logger.error(f"Request ID: {request_id}")
-                        
+
                         # Propagate the error response
-                        return {
-                            "statusCode": status_code,
-                            "body": body
-                        }
+                        return {"statusCode": status_code, "body": body}
                     except json.JSONDecodeError:
                         logger.error(f"Failed to parse error body: {body}")
-                        raise TradingWebhookError(f"Lambda returned status {status_code}")
+                        raise TradingWebhookError(
+                            f"Lambda returned status {status_code}"
+                        )
 
         logger.info(f"Successfully invoked Lambda function: {function_name}")
         return payload
@@ -202,6 +209,7 @@ def invoke_lambda_function(function_name: str, payload: Dict[str, Any] = None) -
         logger.error(f"Lambda invocation error: {str(e)}")
         publish_metric(f"{function_name}_error")
         raise TradingWebhookError(f"Failed to invoke {function_name}: {str(e)}") from e
+
 
 def handle_oanda_trade(
     account: str, symbol: str, signal_direction: str, secret: str
@@ -443,6 +451,19 @@ def lambda_handler(event, context) -> Dict:
 
             if exchange == "COINBASE":
                 result = invoke_lambda_function("trading-prod-coinbase", webhook_data)
+
+                # If result already contains statusCode and body, return it directly
+                if (
+                    isinstance(result, dict)
+                    and "statusCode" in result
+                    and "body" in result
+                ):
+                    logger.info(
+                        f"Propagating Coinbase Lambda response with status {result['statusCode']}"
+                    )
+                    return result
+
+                # Otherwise, wrap the result in a 200 response
                 response = {"statusCode": 200, "body": json.dumps(result)}
                 return response
 

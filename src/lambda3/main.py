@@ -479,17 +479,21 @@ def lambda_handler(event, context) -> Dict:
 
         # Enhanced webhook data validation
         try:
-            # Check if body exists and is properly formatted
-            if "body" not in event:
-                raise KeyError("Missing request body")
-
-            # Handle both direct JSON and string-encoded JSON
-            if isinstance(event["body"], str):
-                webhook_data = json.loads(event["body"])
-            elif isinstance(event["body"], dict):
-                webhook_data = event["body"]
+            # Handle both direct Lambda invocations and API Gateway events
+            if isinstance(event, dict):
+                if "body" in event:
+                    # API Gateway event
+                    if isinstance(event["body"], str):
+                        webhook_data = json.loads(event["body"])
+                    elif isinstance(event["body"], dict):
+                        webhook_data = event["body"]
+                    else:
+                        raise ValueError(f"Unexpected body type: {type(event['body'])}")
+                else:
+                    # Direct Lambda invocation
+                    webhook_data = event
             else:
-                raise ValueError(f"Unexpected body type: {type(event['body'])}")
+                raise ValueError("Invalid event format")
 
             # Validate required fields exist
             if "market_data" not in webhook_data:
@@ -506,7 +510,9 @@ def lambda_handler(event, context) -> Dict:
             direction = webhook_data["signal"]["direction"]
 
             # Log successful parsing
-            logger.info(f"Successfully parsed webhook data for {symbol} - Direction: {direction}")
+            logger.info(
+                f"Successfully parsed webhook data for {symbol} - Direction: {direction}"
+            )
             logger.debug(f"Full webhook data: {json.dumps(webhook_data)}")
 
         except json.JSONDecodeError as e:
