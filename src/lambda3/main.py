@@ -12,24 +12,6 @@ from botocore.exceptions import ClientError
 import psutil
 from coinbase.rest import RESTClient
 
-MIN_ORDER = {
-    "BTCUSD": 0.01,
-    "ETHUSD": 0.01,
-    "XRPUSD": 0.01,
-    "HBARUSD": 1,
-    "SOLUSD": 0.01,
-    "DOGEUSD": 1,
-}
-
-# AVG_ORDER_SIZE = {
-#     "BTCUSD": "$993.00",
-#     "ETHUSD": "$39.94",
-#     "XRPUSD": "$.243",
-#     "HBARUSD": "$.344",
-#     "SOLUSD": "$2.3533",
-#     "DOGEUSD": "$.433",
-# }
-
 # Initialize AWS clients
 cloudwatch = boto3.client("cloudwatch")
 
@@ -116,8 +98,66 @@ def get_api_key() -> Tuple[str, str]:
         ) from e
 
 
-def place_order(client: RESTClient, order_type: str, symbol: str, size: float) -> Dict:
-    """Generic order placement function with enhanced error handling"""
+def determine_order_size(
+    api_key: str, api_secret: str, symbol: str
+) -> Tuple[float, float]:
+    """Determine the order size based on the symbol"""
+
+    # Initialize REST client
+    client = RESTClient(api_key=api_key, api_secret=api_secret)
+    logger.debug("REST client initialized successfully")
+
+    # Format the symbol
+    formatted_symbol = f"{symbol[:3]}-{symbol[3:]}"
+
+    # Get bid/ask response
+    bid_ask_response = client.get_best_bid_ask(product_ids=[formatted_symbol])
+
+    # Extract best prices from first pricebook
+    pricebook = bid_ask_response["pricebooks"][0]
+
+    # Extract best bid and ask
+    best_bid = float(pricebook["bids"][0]["price"]) if pricebook["bids"] else None
+    best_ask = float(pricebook["asks"][0]["price"]) if pricebook["asks"] else None
+
+    # Get account information
+    accounts = client.get_accounts(limit=1)
+
+    # Extract available balance
+    available_balance = accounts["accounts"][0]["available_balance"]["value"]
+
+    # multiply available_balance by 2% to get max risk
+    max_risk = available_balance * 0.02
+
+    # Calculate the order size
+    long_order_size = max_risk / best_ask
+    short_order_size = max_risk / best_bid
+
+    # Return the best bid and ask
+    return long_order_size, short_order_size
+
+
+def place_order(
+    api_key: str, api_secret: str, order_type: str, symbol: str, size: float
+) -> Dict:
+    """
+    Generic order placement function with enhanced error handling
+
+    Args:
+        api_key (str): Coinbase API key
+        api_secret (str): Coinbase API secret
+        order_type (str): Order type ('BUY' or 'SELL')
+        symbol (str): Trading symbol (e.g., 'BTCUSD')
+        size (float): Order size
+
+    Returns:
+        Dict: Order status and details
+    """
+
+    # Initialize REST client
+    client = RESTClient(api_key=api_key, api_secret=api_secret)
+    logger.debug("REST client initialized successfully")
+
     start_time = time.time()
     order_id = str(uuid.uuid4())
 
@@ -181,7 +221,10 @@ def place_order(client: RESTClient, order_type: str, symbol: str, size: float) -
 def list_accounts(api_key: str, api_secret: str) -> str:
     """List Coinbase accounts with error handling"""
     try:
+        # Initialize REST client
         client = RESTClient(api_key=api_key, api_secret=api_secret)
+        logger.debug("REST client initialized successfully")
+
         accounts = client.get_accounts(
             limit=1,
         )
@@ -194,14 +237,10 @@ def list_accounts(api_key: str, api_secret: str) -> str:
 def place_buy_order(api_key: str, api_secret: str, symbol: str) -> Dict:
     """Place buy order with validation and metrics"""
     try:
-        if symbol not in MIN_ORDER:
-            publish_metric("invalid_symbol_error")
-            raise CoinbaseError(f"Invalid symbol: {symbol}")
+        # retrieve best bid and ask
+        long_order_size, _ = determine_order_size(api_key, api_secret, symbol)
 
-        client = RESTClient(api_key=api_key, api_secret=api_secret)
-        size = MIN_ORDER[symbol]
-
-        return place_order(client, "BUY", symbol, size)
+        return place_order(api_key, api_secret, "BUY", symbol, long_order_size)
 
     except Exception as e:
         publish_metric("buy_order_error")
@@ -212,14 +251,11 @@ def place_buy_order(api_key: str, api_secret: str, symbol: str) -> Dict:
 def place_sell_order(api_key: str, api_secret: str, symbol: str) -> Dict:
     """Place sell order with validation and metrics"""
     try:
-        if symbol not in MIN_ORDER:
-            publish_metric("invalid_symbol_error")
-            raise CoinbaseError(f"Invalid symbol: {symbol}")
 
-        client = RESTClient(api_key=api_key, api_secret=api_secret)
-        size = MIN_ORDER[symbol]
+        # retrieve best bid and ask
+        _, short_order_size = determine_order_size(api_key, api_secret, symbol)
 
-        return place_order(client, "SELL", symbol, size)
+        return place_order(api_key, api_secret, "SELL", symbol, short_order_size)
 
     except Exception as e:
         publish_metric("sell_order_error")
@@ -352,6 +388,8 @@ def handle_position_change(
     api_key: str, api_secret: str, symbol: str, direction: str
 ) -> Dict:
     """Handle position changes with full error handling and metrics"""
+
+    # Record start time
     start_time = time.time()
 
     try:
