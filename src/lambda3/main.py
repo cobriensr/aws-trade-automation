@@ -147,9 +147,9 @@ def determine_order_size(
         max_risk = available_balance * 0.02
         logger.debug(f"Max risk calculated: {max_risk}")
 
-        # Calculate order sizes
-        long_order_size = max_risk / best_ask
-        short_order_size = max_risk / best_bid
+        # Calculate order sizes and round to 8 decimal places for BTC
+        long_order_size = round(max_risk / best_ask, 8)
+        short_order_size = round(max_risk / best_bid, 8)
 
         logger.debug(f"Calculated order sizes - Long: {long_order_size}, Short: {short_order_size}")
         
