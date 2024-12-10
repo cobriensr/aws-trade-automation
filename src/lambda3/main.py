@@ -305,7 +305,7 @@ def close_position(api_key: str, api_secret: str, symbol: str) -> Dict:
 
             last_order = orders.orders[0]
             is_long = last_order.side == "BUY"
-            position_size = last_order.base_size
+            position_size = str(abs(float(last_order.base_size)))
 
             # Place opposite order to close position
             if is_long:
