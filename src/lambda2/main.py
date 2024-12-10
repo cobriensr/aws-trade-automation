@@ -124,6 +124,7 @@ def get_historical_data_dict(api_key: str) -> Dict:
             "NG.n.0": "NG1!",  # Natural Gas
             "GC.n.0": "GC1!",  # Gold
             "CL.n.0": "CL1!",  # Crude Oil
+            "SI.n.0": "SI1!",  # Silver
         }
 
         # Initialize Databento client with timeout handling
