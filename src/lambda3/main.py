@@ -439,9 +439,7 @@ def list_orders(api_key: str, api_secret: str, symbol: str) -> Dict:
 def handle_position_change(
     api_key: str, api_secret: str, symbol: str, direction: str
 ) -> Dict:
-    """Handle position changes with full error handling and metrics"""
-
-    # Record start time
+    """Handle position changes with better error handling for insufficient funds"""
     start_time = time.time()
 
     try:
@@ -457,7 +455,26 @@ def handle_position_change(
         if current_positions.get("orders"):
             logger.info(f"Closing existing positions for {symbol}")
             close_result = close_position(api_key, api_secret, symbol)
+            
+            # Check if the error is due to insufficient funds
             if not close_result["success"]:
+                error_details = close_result.get("details", {})
+                if isinstance(error_details, dict):
+                    error_type = error_details.get("error")
+                    error_msg = error_details.get("message", "")
+                    preview_failure = error_details.get("preview_failure_reason", "")
+                    
+                    # Check for any of the insufficient funds indicators
+                    if (error_type == "INSUFFICIENT_FUND" or 
+                        "Insufficient balance" in error_msg or 
+                        preview_failure == "PREVIEW_INSUFFICIENT_FUND"):
+                        logger.info("Insufficient funds to execute order - skipping")
+                        return {
+                            "success": True,
+                            "message": "Skipped order due to insufficient funds"
+                        }
+                
+                # If it's a different error, raise it
                 publish_metric("position_close_error")
                 raise CoinbaseError(
                     f"Failed to close positions: {close_result['error']}"
@@ -474,6 +491,24 @@ def handle_position_change(
         else:
             publish_metric("invalid_direction_error")
             raise CoinbaseError(f"Invalid direction: {direction}")
+
+        # Check if the new order had insufficient funds
+        if not result["success"]:
+            error_details = result.get("details", {})
+            if isinstance(error_details, dict):
+                error_type = error_details.get("error")
+                error_msg = error_details.get("message", "")
+                preview_failure = error_details.get("preview_failure_reason", "")
+                
+                # Check for any of the insufficient funds indicators
+                if (error_type == "INSUFFICIENT_FUND" or 
+                    "Insufficient balance" in error_msg or 
+                    preview_failure == "PREVIEW_INSUFFICIENT_FUND"):
+                    logger.info("Insufficient funds to execute order - skipping")
+                    return {
+                        "success": True,
+                        "message": "Skipped order due to insufficient funds"
+                    }
 
         # Record execution time
         duration = (time.time() - start_time) * 1000
