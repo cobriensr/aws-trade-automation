@@ -197,7 +197,7 @@ def create_long_market_order(
     """
 
     # Set the trade units and symbol based on the instrument
-    trade_units = str(FOREX_UNITS["MINI_LOT"] * 5)
+    trade_units = str(FOREX_UNITS["STANDARD_LOT"])
     trade_symbol = SYMBOL_MAP[instrument]
 
     # Set the headers for the API request
@@ -260,7 +260,7 @@ def create_short_market_order(
     """
 
     # Set the trade units and symbol based on the instrument
-    trade_units = str(-FOREX_UNITS["MINI_LOT"] * 5)
+    trade_units = str(-FOREX_UNITS["STANDARD_LOT"])
     trade_symbol = SYMBOL_MAP[instrument]
 
     # Set the headers for the API request
