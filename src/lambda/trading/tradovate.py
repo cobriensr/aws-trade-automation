@@ -32,7 +32,7 @@ def get_auth_token(
         "appId": "Automation",
         "appVersion": "0.0.1",
         "deviceId": device_id,
-        "cid": cid,
+        "cid": int(cid),
         "sec": secret,
     }
     # Set headers
@@ -159,6 +159,7 @@ def get_contract_info(token: str, contract_ids: list[int]) -> List[Dict]:
 
     # Return JSON data from response
     contract_response = response.json()
+    logger.debug(f"Contract response: {contract_response}")
 
     # Create name list to hold contract names
     contract_names_with_ids = []
@@ -173,7 +174,7 @@ def get_contract_info(token: str, contract_ids: list[int]) -> List[Dict]:
     return contract_names_with_ids
 
 
-def get_all_positions(token: str, instrument: str) -> List[Dict]:
+def get_all_positions(token: str) -> List[Dict]:
     """
     Get list of all positions from Tradovate API.
 
@@ -190,9 +191,7 @@ def get_all_positions(token: str, instrument: str) -> List[Dict]:
             "Authorization": f"Bearer {token}",
         }
         # Make GET request to get position list
-        response = requests.get(
-            f"{DEMO}/position/list?name={instrument}", headers=headers, timeout=5
-        )
+        response = requests.get(f"{DEMO}/position/list", headers=headers, timeout=5)
         # Return JSON data from response
         response.raise_for_status()
 
@@ -201,7 +200,7 @@ def get_all_positions(token: str, instrument: str) -> List[Dict]:
 
         # Check if there are any positions
         if not positions:
-            logger.info(f"No positions found for {instrument}")
+            logger.info("No positions found")
             return []
 
         # Create list to hold positions that have a netPos <> 0
@@ -242,14 +241,36 @@ def liquidate_position(contract_id: str, account_id: str, token: str) -> Dict:
         "Content-Type": "application/json",
         "Authorization": f"Bearer {token}",
     }
-    # Create request body
-    body = {"accountId": account_id, "contractId": contract_id, "admin": False}
+
+    # Create request body with integer conversion
+    body = {
+        "accountId": int(account_id),
+        "contractId": int(contract_id),
+        "admin": False,
+    }
+
+    # Log the request details
+    logger.info(f"Attempting to liquidate position for contract {contract_id}")
+    logger.debug(f"Liquidation request body: {body}")
+
     # Make POST request to liquidate position
     response = requests.post(
         f"{DEMO}/order/liquidateposition", headers=headers, timeout=5, json=body
     )
-    # Return JSON data from response
-    return response.json()
+
+    # Log the complete response
+    logger.debug(f"Liquidation response status: {response.status_code}")
+    logger.debug(f"Liquidation response body: {response.text}")
+
+    result = response.json()
+
+    # Validate we got an order ID back
+    if "orderId" in result:
+        logger.info(f"Successfully liquidated position. Order ID: {result['orderId']}")
+    else:
+        logger.error(f"Unexpected liquidation response format: {result}")
+
+    return result
 
 
 def place_buy_order(
@@ -275,10 +296,10 @@ def place_buy_order(
     # Create request body
     body = {
         "accountSpec": username,
-        "accountId": account_id,
+        "accountId": int(account_id),
         "action": "Buy",
         "symbol": instrument,
-        "orderQty": quantity,
+        "orderQty": int(quantity),
         "orderType": "Market",
         "isAutomated": True,
     }
@@ -313,10 +334,10 @@ def place_sell_order(
     # Create request body
     body = {
         "accountSpec": username,
-        "accountId": account_id,
+        "accountId": int(account_id),
         "action": "Sell",
         "symbol": instrument,
-        "orderQty": quantity,
+        "orderQty": int(quantity),
         "orderType": "Market",
         "isAutomated": True,
     }

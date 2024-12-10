@@ -21,7 +21,6 @@ from trading.oanda import (
 from trading.tradovate import (
     get_auth_token,
     get_all_positions,
-    get_contract_info,
     get_accounts,
     get_cash_balance_snapshot,
     liquidate_position,
@@ -325,26 +324,55 @@ def handle_futures_trade(
         account_id = get_accounts(access_token)
 
         # Get current positions
-        positions = get_all_positions(access_token, mapped_symbol)
+        positions = get_all_positions(access_token)
 
         if positions:
-            # There are existing positions - liquidate and then place new order
-            logger.info(
-                f"Found existing positions for {mapped_symbol}, liquidating first"
-            )
-            contracts_ids = [position["contractId"] for position in positions]
-            contract_names_with_ids = get_contract_info(
-                token=access_token, contract_ids=contracts_ids
-            )
+            # Log full position details for debugging
+            logger.info(f"Found existing positions, total positions: {len(positions)}")
+            logger.debug(f"Position details: {positions}")
 
-            for contract in contract_names_with_ids:
-                if mapped_symbol in contract["contractName"]:
-                    liquidate_result = liquidate_position(
-                        contract_id=contract["contractId"],
-                        account_id=account_id,
-                        token=access_token,
-                    )
-                    logger.info(f"Liquidation result: {liquidate_result}")
+            # Liquidate all existing positions
+            for position in positions:
+                # Only liquidate if there's an actual position
+                if position["netPos"] != 0:
+                    try:
+                        liquidate_result = liquidate_position(
+                            contract_id=position["contractId"],
+                            account_id=account_id,
+                            token=access_token,
+                        )
+
+                        # Verify successful liquidation based on response
+                        if "orderId" in liquidate_result:
+                            logger.info(
+                                f"Successfully liquidated position with Order ID: {liquidate_result['orderId']}"
+                            )
+                        else:
+                            logger.error(
+                                f"Unexpected liquidation response format: {liquidate_result}"
+                            )
+                            if (
+                                "failureReason" in liquidate_result
+                                or "failureText" in liquidate_result
+                            ):
+                                error_msg = liquidate_result.get(
+                                    "failureText", liquidate_result.get("failureReason")
+                                )
+                                raise TradingWebhookError(
+                                    f"Liquidation failed: {error_msg}"
+                                )
+                            raise TradingWebhookError(
+                                "Failed to liquidate position - unexpected response format"
+                            )
+
+                    except Exception as e:
+                        logger.error(f"Error liquidating position: {str(e)}")
+                        logger.error(f"Position details: {position}")
+                        raise TradingWebhookError(
+                            f"Failed to liquidate position: {str(e)}"
+                        ) from e
+        else:
+            logger.info("No existing positions found")
 
         # Place new order based on signal direction
         logger.info(
