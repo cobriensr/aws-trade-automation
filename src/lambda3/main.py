@@ -207,33 +207,50 @@ def place_order(
         duration = (time.time() - start_time) * 1000
         publish_metric(f"{order_type.lower()}_order_duration", duration, "Milliseconds")
 
-        # Process response
-        if order.success:
-            order_id = order.order_id
-            try:
-                fills = client.get_fills(order_id=order_id)
-                fill_details = fills.to_dict()
-                publish_metric(f"{order_type.lower()}_order_success")
-                return {"success": True, "order_id": order_id, "fills": fill_details}
-            except Exception as e:
-                logger.error(f"Fill retrieval failed for order {order_id}: {str(e)}")
-                publish_metric("fill_retrieval_error")
+        # Process response - Updated to handle new response structure
+        if hasattr(order, 'success_response'):
+            success_data = order.success_response
+            order_id = getattr(success_data, 'order_id', None)
+            if order_id:
+                try:
+                    fills = client.get_fills(order_id=order_id)
+                    fill_details = fills.to_dict() if hasattr(fills, 'to_dict') else fills
+                    publish_metric(f"{order_type.lower()}_order_success")
+                    return {"success": True, "order_id": order_id, "fills": fill_details}
+                except Exception as e:
+                    logger.error(f"Fill retrieval failed for order {order_id}: {str(e)}")
+                    publish_metric("fill_retrieval_error")
+                    return {
+                        "success": True,
+                        "order_id": order_id,
+                        "error": "Fill retrieval failed",
+                        "details": str(e),
+                    }
+            else:
+                # Handle successful order but missing order_id
+                logger.warning("Order successful but no order_id in response")
                 return {
                     "success": True,
-                    "order_id": order_id,
-                    "error": "Fill retrieval failed",
-                    "details": str(e),
+                    "order_id": order_id,  # Using client-generated ID
+                    "details": "Order placed successfully but ID not returned"
                 }
 
-        if not order.success:
-            error_msg = order.failure_reason
-            logger.error(f"{order_type} order failed: {error_msg}")
-            publish_metric(f"{order_type.lower()}_order_error")
-            return {
-                "success": False,
-                "error": f"{order_type} order failed",
-                "details": error_msg,
-            }
+        # Handle error response
+        error_msg = None
+        if hasattr(order, 'error_response'):
+            error_msg = str(order.error_response)
+        elif hasattr(order, 'failure_reason'):
+            error_msg = str(order.failure_reason)
+        else:
+            error_msg = "Unknown error in order response"
+
+        logger.error(f"{order_type} order failed: {error_msg}")
+        publish_metric(f"{order_type.lower()}_order_error")
+        return {
+            "success": False,
+            "error": f"{order_type} order failed",
+            "details": error_msg,
+        }
 
     except Exception as e:
         logger.error(f"Order placement error: {str(e)}")
