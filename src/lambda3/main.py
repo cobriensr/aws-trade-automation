@@ -388,7 +388,6 @@ def list_orders(api_key: str, api_secret: str, symbol: str) -> Dict:
                 product_ids=[formatted_symbol],
                 product_type="SPOT",
                 order_types=["MARKET"],
-                product_type="SPOT",
                 limit=1,
                 sort_by="LAST_FILL_TIME",
             )
