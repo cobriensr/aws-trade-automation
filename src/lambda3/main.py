@@ -477,12 +477,63 @@ def lambda_handler(event, context) -> Dict:
             response = {"statusCode": 200, "body": json.dumps(account_info)}
             return response
 
-        # Validate webhook data
+        # Enhanced webhook data validation
         try:
-            webhook_data = json.loads(event["body"])
+            # Check if body exists and is properly formatted
+            if "body" not in event:
+                raise KeyError("Missing request body")
+
+            # Handle both direct JSON and string-encoded JSON
+            if isinstance(event["body"], str):
+                webhook_data = json.loads(event["body"])
+            elif isinstance(event["body"], dict):
+                webhook_data = event["body"]
+            else:
+                raise ValueError(f"Unexpected body type: {type(event['body'])}")
+
+            # Validate required fields exist
+            if "market_data" not in webhook_data:
+                raise KeyError("Missing market_data in webhook")
+            if "symbol" not in webhook_data["market_data"]:
+                raise KeyError("Missing symbol in market_data")
+            if "signal" not in webhook_data:
+                raise KeyError("Missing signal in webhook")
+            if "direction" not in webhook_data["signal"]:
+                raise KeyError("Missing direction in signal")
+
+            # Extract key fields
             symbol = webhook_data["market_data"]["symbol"]
             direction = webhook_data["signal"]["direction"]
-        except (json.JSONDecodeError, KeyError) as e:
+
+            # Log successful parsing
+            logger.info(f"Successfully parsed webhook data for {symbol} - Direction: {direction}")
+            logger.debug(f"Full webhook data: {json.dumps(webhook_data)}")
+
+        except json.JSONDecodeError as e:
+            publish_metric("invalid_webhook_error")
+            return {
+                "statusCode": 400,
+                "body": json.dumps(
+                    {
+                        "error": "Invalid JSON in webhook data",
+                        "details": str(e),
+                        "request_id": request_id,
+                    }
+                ),
+            }
+        except KeyError as e:
+            publish_metric("invalid_webhook_error")
+            return {
+                "statusCode": 400,
+                "body": json.dumps(
+                    {
+                        "error": "Missing required fields in webhook data",
+                        "details": str(e),
+                        "request_id": request_id,
+                    }
+                ),
+            }
+        except Exception as e:
             publish_metric("invalid_webhook_error")
             return {
                 "statusCode": 400,

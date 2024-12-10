@@ -121,35 +121,71 @@ def get_credentials() -> Tuple[str, str, str, str, str, str, str]:
 
 
 def invoke_lambda_function(function_name: str, payload: Dict[str, Any] = None) -> Dict:
-    """Generic Lambda invocation with enhanced error handling"""
+    """Generic Lambda invocation with enhanced error handling and status code propagation"""
     start_time = time.time()
     try:
         logger.info(f"Invoking Lambda function: {function_name}")
         response = lambda_client.invoke(
             FunctionName=function_name,
             InvocationType="RequestResponse",
-            Payload=json.dumps(payload) if payload else "{}",
+            Payload=json.dumps(payload) if payload else "{}"
         )
 
         duration = (time.time() - start_time) * 1000
         publish_metric(f"{function_name}_duration", duration, "Milliseconds")
 
+        # Check Lambda invocation status
         if response["StatusCode"] != 200:
-            logger.error(
-                f"Lambda invocation failed with status code: {response['StatusCode']}"
-            )
-            raise TradingWebhookError(
-                f"Lambda invocation failed: {response['StatusCode']}"
-            )
+            logger.error(f"Lambda invocation failed with status code: {response['StatusCode']}")
+            raise TradingWebhookError(f"Lambda invocation failed: {response['StatusCode']}")
 
-        payload = json.loads(response["Payload"].read())
-        if "errorMessage" in payload:
-            logger.error(
-                f"Lambda execution failed with error: {payload['errorMessage']}"
-            )
-            raise TradingWebhookError(
-                f"Lambda execution failed: {payload['errorMessage']}"
-            )
+        # Parse the payload
+        payload_str = response["Payload"].read()
+        try:
+            payload = json.loads(payload_str)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse Lambda response: {str(e)}")
+            logger.error(f"Raw payload: {payload_str}")
+            raise TradingWebhookError("Invalid response format from Lambda") from e
+
+        # Check for Lambda execution errors
+        if "FunctionError" in response:
+            error_msg = payload.get("errorMessage", "Unknown error")
+            logger.error(f"Lambda execution failed: {error_msg}")
+            raise TradingWebhookError(f"Lambda execution failed: {error_msg}")
+
+        # Extract status code and body from payload
+        if isinstance(payload, dict):
+            status_code = payload.get("statusCode")
+            body = payload.get("body")
+            
+            # Log the complete response for debugging
+            logger.debug(f"Lambda response - Status: {status_code}, Body: {body}")
+
+            # If status code exists, use it for error handling
+            if status_code is not None:
+                if status_code >= 400:
+                    # Parse the error message from the body
+                    try:
+                        error_details = json.loads(body) if isinstance(body, str) else body
+                        error_msg = error_details.get("error", "Unknown error")
+                        details = error_details.get("details", "")
+                        request_id = error_details.get("request_id", "")
+                        
+                        logger.error(f"Lambda returned error status {status_code}: {error_msg}")
+                        if details:
+                            logger.error(f"Error details: {details}")
+                        if request_id:
+                            logger.error(f"Request ID: {request_id}")
+                        
+                        # Propagate the error response
+                        return {
+                            "statusCode": status_code,
+                            "body": body
+                        }
+                    except json.JSONDecodeError:
+                        logger.error(f"Failed to parse error body: {body}")
+                        raise TradingWebhookError(f"Lambda returned status {status_code}")
 
         logger.info(f"Successfully invoked Lambda function: {function_name}")
         return payload
@@ -166,7 +202,6 @@ def invoke_lambda_function(function_name: str, payload: Dict[str, Any] = None) -
         logger.error(f"Lambda invocation error: {str(e)}")
         publish_metric(f"{function_name}_error")
         raise TradingWebhookError(f"Failed to invoke {function_name}: {str(e)}") from e
-
 
 def handle_oanda_trade(
     account: str, symbol: str, signal_direction: str, secret: str
