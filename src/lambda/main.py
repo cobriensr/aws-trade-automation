@@ -188,11 +188,11 @@ def invoke_lambda_function(function_name: str, payload: Dict[str, Any] = None) -
 
                         # Propagate the error response
                         return {"statusCode": status_code, "body": body}
-                    except json.JSONDecodeError:
+                    except json.JSONDecodeError as exc:
                         logger.error(f"Failed to parse error body: {body}")
                         raise TradingWebhookError(
                             f"Lambda returned status {status_code}"
-                        )
+                        ) from exc
 
         logger.info(f"Successfully invoked Lambda function: {function_name}")
         return payload
