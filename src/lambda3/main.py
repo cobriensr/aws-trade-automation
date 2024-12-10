@@ -20,6 +20,10 @@ class CoinbaseError(Exception):
     """Custom exception for Coinbase-specific errors"""
 
 
+class InsufficientBalanceError(Exception):
+    """Raised when account balance is insufficient for minimum order size"""
+
+
 # Generate a unique order ID
 def generate_order_id():
     return str(uuid.uuid4())
@@ -98,91 +102,162 @@ def get_api_key() -> Tuple[str, str]:
         ) from e
 
 
-def determine_order_size(
-    api_key: str, api_secret: str, symbol: str
-) -> Tuple[float, float]:
+def get_account_balance(client: RESTClient, currency: str) -> Tuple[float, str]:
     """
-    Determine the order size based on the symbol with minimum balance checks
-    
+    Get available balance for specific currency
+
     Args:
-        api_key (str): Coinbase API key
-        api_secret (str): Coinbase API secret 
-        symbol (str): Trading symbol (e.g., 'BTCUSD')
+        client: RESTClient instance
+        currency: Currency code (e.g., 'BTC', 'USD')
 
     Returns:
-        Tuple[float, float]: (long_order_size, short_order_size)
-        
+        Tuple[float, str]: (balance amount, currency)
+
     Raises:
-        ValueError: If balance is insufficient for minimum order size
+        ValueError: If currency not found or currency mismatch
     """
-    # Initialize REST client
+    accounts = client.get_accounts()
+
+    for account in accounts["accounts"]:
+        if account["currency"] == currency:
+            balance = float(account["available_balance"]["value"])
+            returned_currency = account["available_balance"]["currency"]
+
+            # Validate currency matches what we expect
+            if returned_currency != currency:
+                raise ValueError(
+                    f"Currency mismatch: requested {currency}, "
+                    f"but got {returned_currency}"
+                )
+
+            logger.info(f"Found {currency} balance: {balance}")
+            return balance, currency
+
+    raise ValueError(f"No account found for currency: {currency}")
+
+
+def determine_order_size(
+    api_key: str, api_secret: str, symbol: str, direction: str
+) -> float:
+    """
+    Determine the order size based on symbol and direction, checking appropriate asset balance
+
+    Args:
+        api_key (str): Coinbase API key
+        api_secret (str): Coinbase API secret
+        symbol (str): Trading symbol (e.g., 'BTCUSD')
+        direction (str): "LONG" or "SHORT"
+
+    Returns:
+        float: Order size in base currency
+
+    Raises:
+        ValueError: If currency validation fails or calculation error
+        InsufficientBalanceError: If balance too low for minimum order
+    """
     client = RESTClient(api_key=api_key, api_secret=api_secret)
     logger.debug("REST client initialized successfully")
 
-    # Define minimum order sizes (in base currency)
-    MIN_ORDER_SIZE = 0.001  # Minimum BTC order size
+    # Parse the symbol to get base and quote currencies
+    base_currency = symbol[:3]  # e.g., 'BTC' from 'BTCUSD'
+    quote_currency = symbol[3:]  # e.g., 'USD' from 'BTCUSD'
 
-    # Get account information first
-    accounts = client.get_accounts(limit=1)
-    
+    MIN_SIZES = {
+        "BTC": 0.000001,  # Minimum BTC order size
+        "ETH": 0.001,  # Minimum ETH order size
+    }
+
+    if base_currency not in MIN_SIZES:
+        raise ValueError(f"Minimum order size not defined for {base_currency}")
+
+    MIN_ORDER_SIZE = MIN_SIZES[base_currency]
+
     try:
-        available_balance = float(accounts["accounts"][0]["available_balance"]["value"])
-        currency = accounts["accounts"][0]["available_balance"]["currency"]
-        
-        logger.info(f"Available balance: {available_balance} {currency}")
-
-        if available_balance < MIN_ORDER_SIZE:
-            error_msg = (
-                f"Insufficient balance ({available_balance} {currency}) "
-                f"for minimum order size ({MIN_ORDER_SIZE} {currency})"
-            )
-            logger.error(error_msg)
-            raise InsufficientBalanceError(error_msg)
-
-        if available_balance <= 0:
-            raise ValueError("Available balance must be greater than 0")
-
-        # Format symbol and get prices only if we have sufficient balance
-        formatted_symbol = f"{symbol[:3]}-{symbol[3:]}"
+        # Get prices first as we'll need them for both directions
+        formatted_symbol = f"{base_currency}-{quote_currency}"
         bid_ask_response = client.get_best_bid_ask(product_ids=[formatted_symbol])
         pricebook = bid_ask_response["pricebooks"][0]
 
-        # Extract best bid and ask
         best_bid = float(pricebook["bids"][0]["price"]) if pricebook["bids"] else None
         best_ask = float(pricebook["asks"][0]["price"]) if pricebook["asks"] else None
 
         if best_bid is None or best_ask is None:
             raise ValueError("Unable to get valid bid/ask prices")
 
-        # Calculate risk-adjusted order sizes
-        max_risk = available_balance * 0.02  # 2% risk
-        logger.debug(f"Max risk calculated: {max_risk}")
-
-        # Calculate order sizes
-        long_order_size = max(MIN_ORDER_SIZE, round(max_risk / best_ask, 8))
-        short_order_size = max(MIN_ORDER_SIZE, round(max_risk / best_bid, 8))
-
-        if long_order_size > available_balance or short_order_size > available_balance:
-            error_msg = (
-                f"Calculated order size ({max(long_order_size, short_order_size)} {currency}) "
-                f"exceeds available balance ({available_balance} {currency})"
+        # Check appropriate balance based on direction
+        if direction == "LONG":
+            # For longs, we need quote currency (e.g., USD)
+            available_balance, returned_currency = get_account_balance(
+                client, quote_currency
             )
-            logger.error(error_msg)
-            raise InsufficientBalanceError(error_msg)
+            if returned_currency != quote_currency:
+                raise ValueError(
+                    f"Currency mismatch for LONG order: Expected {quote_currency}, "
+                    f"got {returned_currency}"
+                )
 
+            max_risk = available_balance * 0.02
+            order_size = round(max_risk / best_ask, 8)
+            logger.debug(
+                "Long order size calculated with 2%% risk of %s: %s %s",
+                quote_currency,
+                order_size,
+                base_currency,
+            )
+
+        elif direction == "SHORT":
+            # For shorts, we need base currency (e.g., BTC) as we're selling it
+            available_balance, returned_currency = get_account_balance(
+                client, base_currency
+            )
+            if returned_currency != base_currency:
+                raise ValueError(
+                    f"Currency mismatch for SHORT order: Expected {base_currency}, "
+                    f"got {returned_currency}"
+                )
+
+            BUFFER_FACTOR = 0.995  # Keep 0.5% as buffer for fees
+            order_size = round(available_balance * BUFFER_FACTOR, 8)
+            logger.debug(
+                "Short order size using full %s balance with buffer: %s",
+                base_currency,
+                order_size,
+            )
+
+        else:
+            raise ValueError(f"Invalid direction: {direction}")
+
+        # Check minimum order size
+        if order_size < MIN_ORDER_SIZE:
+            raise InsufficientBalanceError(
+                f"Calculated order size ({order_size} {base_currency}) "
+                f"below minimum ({MIN_ORDER_SIZE} {base_currency})"
+            )
+
+        # Additional validation for shorts
+        if direction == "SHORT" and order_size > available_balance:
+            raise InsufficientBalanceError(
+                f"Calculated short size ({order_size} {base_currency}) "
+                f"exceeds available balance ({available_balance} {base_currency})"
+            )
+
+        # Log full order details
         logger.info(
-            f"Order sizes calculated - Long: {long_order_size}, Short: {short_order_size} {currency}"
+            "Order size calculated for %s %s: %s %s (Price: %s %s)",
+            direction,
+            symbol,
+            order_size,
+            base_currency,
+            best_ask if direction == "LONG" else best_bid,
+            quote_currency,
         )
-        return long_order_size, short_order_size
 
-    except (KeyError, ValueError, TypeError) as e:
+        return order_size
+
+    except Exception as e:
         logger.error(f"Error calculating order size: {str(e)}")
-        logger.error(f"Account response: {accounts}")
         raise ValueError(f"Failed to calculate order size: {str(e)}") from e
 
-
-class InsufficientBalanceError(Exception):
-    """Raised when account balance is insufficient for minimum order size"""
 
 def place_order(
     api_key: str, api_secret: str, order_type: str, symbol: str, size: float
@@ -231,17 +306,25 @@ def place_order(
         publish_metric(f"{order_type.lower()}_order_duration", duration, "Milliseconds")
 
         # Process response - Updated to handle new response structure
-        if hasattr(order, 'success_response'):
+        if hasattr(order, "success_response"):
             success_data = order.success_response
-            order_id = getattr(success_data, 'order_id', None)
+            order_id = getattr(success_data, "order_id", None)
             if order_id:
                 try:
                     fills = client.get_fills(order_id=order_id)
-                    fill_details = fills.to_dict() if hasattr(fills, 'to_dict') else fills
+                    fill_details = (
+                        fills.to_dict() if hasattr(fills, "to_dict") else fills
+                    )
                     publish_metric(f"{order_type.lower()}_order_success")
-                    return {"success": True, "order_id": order_id, "fills": fill_details}
+                    return {
+                        "success": True,
+                        "order_id": order_id,
+                        "fills": fill_details,
+                    }
                 except Exception as e:
-                    logger.error(f"Fill retrieval failed for order {order_id}: {str(e)}")
+                    logger.error(
+                        f"Fill retrieval failed for order {order_id}: {str(e)}"
+                    )
                     publish_metric("fill_retrieval_error")
                     return {
                         "success": True,
@@ -255,14 +338,14 @@ def place_order(
                 return {
                     "success": True,
                     "order_id": order_id,  # Using client-generated ID
-                    "details": "Order placed successfully but ID not returned"
+                    "details": "Order placed successfully but ID not returned",
                 }
 
         # Handle error response
         error_msg = None
-        if hasattr(order, 'error_response'):
+        if hasattr(order, "error_response"):
             error_msg = str(order.error_response)
-        elif hasattr(order, 'failure_reason'):
+        elif hasattr(order, "failure_reason"):
             error_msg = str(order.failure_reason)
         else:
             error_msg = "Unknown error in order response"
@@ -301,10 +384,9 @@ def list_accounts(api_key: str, api_secret: str) -> str:
 def place_buy_order(api_key: str, api_secret: str, symbol: str) -> Dict:
     """Place buy order with validation and metrics"""
     try:
-        # retrieve best bid and ask
-        long_order_size, _ = determine_order_size(api_key, api_secret, symbol)
-
-        return place_order(api_key, api_secret, "BUY", symbol, long_order_size)
+        # Calculate order size for LONG position
+        order_size = determine_order_size(api_key, api_secret, symbol, "LONG")
+        return place_order(api_key, api_secret, "BUY", symbol, order_size)
 
     except Exception as e:
         publish_metric("buy_order_error")
@@ -315,11 +397,9 @@ def place_buy_order(api_key: str, api_secret: str, symbol: str) -> Dict:
 def place_sell_order(api_key: str, api_secret: str, symbol: str) -> Dict:
     """Place sell order with validation and metrics"""
     try:
-
-        # retrieve best bid and ask
-        _, short_order_size = determine_order_size(api_key, api_secret, symbol)
-
-        return place_order(api_key, api_secret, "SELL", symbol, short_order_size)
+        # Calculate order size for SHORT position
+        order_size = determine_order_size(api_key, api_secret, symbol, "SHORT")
+        return place_order(api_key, api_secret, "SELL", symbol, order_size)
 
     except Exception as e:
         publish_metric("sell_order_error")
@@ -360,9 +440,9 @@ def close_position(api_key: str, api_secret: str, symbol: str) -> Dict:
                 product_type="SPOT",
                 order_types=["MARKET"],
                 limit=1,
-                sort_by="LAST_FILL_TIME"
+                sort_by="LAST_FILL_TIME",
             )
-            
+
             if not orders.orders:
                 logger.info("No open positions found to close")
                 return {"success": True, "message": "No positions to close"}
@@ -376,13 +456,13 @@ def close_position(api_key: str, api_secret: str, symbol: str) -> Dict:
                 order = client.market_order_sell(
                     client_order_id=generate_order_id(),
                     product_id=formatted_symbol,
-                    base_size=position_size
+                    base_size=position_size,
                 )
             else:
                 order = client.market_order_buy(
                     client_order_id=generate_order_id(),
                     product_id=formatted_symbol,
-                    base_size=position_size
+                    base_size=position_size,
                 )
 
             logger.info(f"Order placement response received: {json.dumps(order)}")
@@ -479,7 +559,7 @@ def list_orders(api_key: str, api_secret: str, symbol: str) -> Dict:
 def handle_position_change(
     api_key: str, api_secret: str, symbol: str, direction: str
 ) -> Dict:
-    """Handle position changes with balance validation"""
+    """Handle position changes with asset-specific balance checking"""
     start_time = time.time()
 
     try:
@@ -495,7 +575,7 @@ def handle_position_change(
         if current_positions.get("orders"):
             logger.info(f"Closing existing positions for {symbol}")
             close_result = close_position(api_key, api_secret, symbol)
-            
+
             if not close_result["success"]:
                 publish_metric("position_close_error")
                 raise CoinbaseError(
@@ -506,13 +586,14 @@ def handle_position_change(
             logger.info("Existing positions closed successfully")
 
         try:
-            # Attempt to calculate order size - this will raise InsufficientBalanceError if balance too low
+            # Calculate order size based on direction and symbol
+            order_size = determine_order_size(api_key, api_secret, symbol, direction)
+
+            # Place the order
             if direction == "LONG":
-                long_size, _ = determine_order_size(api_key, api_secret, symbol)
-                result = place_order(api_key, api_secret, "BUY", symbol, long_size)
+                result = place_order(api_key, api_secret, "BUY", symbol, order_size)
             elif direction == "SHORT":
-                _, short_size = determine_order_size(api_key, api_secret, symbol)
-                result = place_order(api_key, api_secret, "SELL", symbol, short_size)
+                result = place_order(api_key, api_secret, "SELL", symbol, order_size)
             else:
                 publish_metric("invalid_direction_error")
                 raise CoinbaseError(f"Invalid direction: {direction}")
@@ -522,7 +603,7 @@ def handle_position_change(
             return {
                 "success": False,
                 "error": "Insufficient balance",
-                "details": str(e)
+                "details": str(e),
             }
 
         # Record execution time
@@ -543,6 +624,7 @@ def handle_position_change(
         logger.error(f"Position change error: {str(e)}")
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
         raise CoinbaseError(f"Failed to change position: {str(e)}") from e
+
 
 def lambda_handler(event, context) -> Dict:
     """Enhanced Lambda handler with comprehensive error handling and metrics"""
