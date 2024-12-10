@@ -333,44 +333,43 @@ def handle_futures_trade(
 
             # Liquidate all existing positions
             for position in positions:
-                # Only liquidate if there's an actual position
-                if position["netPos"] != 0:
-                    try:
-                        liquidate_result = liquidate_position(
-                            contract_id=position["contractId"],
-                            account_id=account_id,
-                            token=access_token,
+            # Only liquidate if there's an actual position
+                try:
+                    liquidate_result = liquidate_position(
+                        contract_id=position["contractId"],
+                        account_id=account_id,
+                        token=access_token,
+                    )
+
+                    # Verify successful liquidation based on response
+                    if "orderId" in liquidate_result:
+                        logger.info(
+                            f"Successfully liquidated position with Order ID: {liquidate_result['orderId']}"
+                        )
+                    else:
+                        logger.error(
+                            f"Unexpected liquidation response format: {liquidate_result}"
+                        )
+                        if (
+                            "failureReason" in liquidate_result
+                            or "failureText" in liquidate_result
+                        ):
+                            error_msg = liquidate_result.get(
+                                "failureText", liquidate_result.get("failureReason")
+                            )
+                            raise TradingWebhookError(
+                                f"Liquidation failed: {error_msg}"
+                            )
+                        raise TradingWebhookError(
+                            "Failed to liquidate position - unexpected response format"
                         )
 
-                        # Verify successful liquidation based on response
-                        if "orderId" in liquidate_result:
-                            logger.info(
-                                f"Successfully liquidated position with Order ID: {liquidate_result['orderId']}"
-                            )
-                        else:
-                            logger.error(
-                                f"Unexpected liquidation response format: {liquidate_result}"
-                            )
-                            if (
-                                "failureReason" in liquidate_result
-                                or "failureText" in liquidate_result
-                            ):
-                                error_msg = liquidate_result.get(
-                                    "failureText", liquidate_result.get("failureReason")
-                                )
-                                raise TradingWebhookError(
-                                    f"Liquidation failed: {error_msg}"
-                                )
-                            raise TradingWebhookError(
-                                "Failed to liquidate position - unexpected response format"
-                            )
-
-                    except Exception as e:
-                        logger.error(f"Error liquidating position: {str(e)}")
-                        logger.error(f"Position details: {position}")
-                        raise TradingWebhookError(
-                            f"Failed to liquidate position: {str(e)}"
-                        ) from e
+                except Exception as e:
+                    logger.error(f"Error liquidating position: {str(e)}")
+                    logger.error(f"Position details: {position}")
+                    raise TradingWebhookError(
+                        f"Failed to liquidate position: {str(e)}"
+                    ) from e
         else:
             logger.info("No existing positions found")
 
