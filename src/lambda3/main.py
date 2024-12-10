@@ -209,7 +209,7 @@ def place_order(
 
         # Process response
         if hasattr(order, "success_response"):
-            order_id = order.id
+            order_id = order.success_response.order_id
             try:
                 fills = client.get_fills(order_id=order_id)
                 fill_details = fills.to_dict()
@@ -226,7 +226,7 @@ def place_order(
                 }
 
         elif hasattr(order, "error_response"):
-            error_msg = order.error_response
+            error_msg = order.error_response.message
             logger.error(f"{order_type} order failed: {error_msg}")
             publish_metric(f"{order_type.lower()}_order_error")
             return {
