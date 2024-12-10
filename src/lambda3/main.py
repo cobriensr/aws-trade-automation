@@ -265,7 +265,7 @@ def place_sell_order(api_key: str, api_secret: str, symbol: str) -> Dict:
 
 def close_position(api_key: str, api_secret: str, symbol: str) -> Dict:
     """
-    Close an open position.
+    Close an open position by placing an opposite order.
 
     Args:
         api_key (str): Coinbase API key
@@ -289,13 +289,40 @@ def close_position(api_key: str, api_secret: str, symbol: str) -> Dict:
         formatted_symbol = f"{symbol[:3]}-{symbol[3:]}"
         logger.info(f"Order parameters - Formatted Symbol: {formatted_symbol}")
 
-        # Close position
+        # Get current positions
         try:
-            order = client.close_position(
-                client_order_id=generate_order_id(),
-                product_id=formatted_symbol,
+            orders = client.list_orders(
+                product_ids=[formatted_symbol],
+                product_type="SPOT",
+                order_types=["MARKET"],
+                limit=1,
+                sort_by="LAST_FILL_TIME"
             )
+            
+            if not orders.orders:
+                logger.info("No open positions found to close")
+                return {"success": True, "message": "No positions to close"}
+
+            last_order = orders.orders[0]
+            is_long = last_order.side == "BUY"
+            position_size = last_order.base_size
+
+            # Place opposite order to close position
+            if is_long:
+                order = client.market_order_sell(
+                    client_order_id=generate_order_id(),
+                    product_id=formatted_symbol,
+                    base_size=position_size
+                )
+            else:
+                order = client.market_order_buy(
+                    client_order_id=generate_order_id(),
+                    product_id=formatted_symbol,
+                    base_size=position_size
+                )
+
             logger.info(f"Order placement response received: {json.dumps(order)}")
+
         except Exception as e:
             logger.error(f"Failed to place market order: {str(e)}")
             return {
@@ -303,6 +330,7 @@ def close_position(api_key: str, api_secret: str, symbol: str) -> Dict:
                 "error": "Order placement failed",
                 "details": str(e),
             }
+
         # Process order response
         if hasattr(order, "success_response"):
             try:
@@ -328,7 +356,7 @@ def close_position(api_key: str, api_secret: str, symbol: str) -> Dict:
             return {"success": False, "error": "Order failed", "details": error_msg}
 
     except Exception as e:
-        logger.error(f"Unexpected error in place_sell_order: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error in close_position: {str(e)}", exc_info=True)
         return {"success": False, "error": "Critical error", "details": str(e)}
 
 
@@ -360,6 +388,7 @@ def list_orders(api_key: str, api_secret: str, symbol: str) -> Dict:
                 product_ids=[formatted_symbol],
                 product_type="SPOT",
                 order_types=["MARKET"],
+                product_type="SPOT",
                 limit=1,
                 sort_by="LAST_FILL_TIME",
             )
