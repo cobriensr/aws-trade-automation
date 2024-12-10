@@ -594,3 +594,131 @@ resource "aws_iam_role_policy" "lambda3_secrets" {
     ]
   })
 }
+
+# Add S3 and KMS permissions for Lambda roles to access encrypted buckets
+resource "aws_iam_role_policy" "lambda_s3" {
+  name = "${local.name_prefix}-lambda-s3"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.lambda_deployment.arn,
+          "${aws_s3_bucket.lambda_deployment.arn}/*",
+          aws_s3_bucket.access_logs.arn,
+          "${aws_s3_bucket.access_logs.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.s3.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "lambda2_s3" {
+  name = "${local.name_prefix}-lambda2-s3"
+  role = aws_iam_role.lambda2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.lambda_deployment.arn,
+          "${aws_s3_bucket.lambda_deployment.arn}/*",
+          aws_s3_bucket.access_logs.arn,
+          "${aws_s3_bucket.access_logs.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.s3.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "lambda3_s3" {
+  name = "${local.name_prefix}-lambda3-s3"
+  role = aws_iam_role.lambda3_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.lambda_deployment.arn,
+          "${aws_s3_bucket.lambda_deployment.arn}/*",
+          aws_s3_bucket.access_logs.arn,
+          "${aws_s3_bucket.access_logs.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.s3.arn
+      }
+    ]
+  })
+}
+
+# Add KMS permissions for GitHub Actions (admin user)
+resource "aws_iam_user_policy" "admin_kms" {
+  name = "${local.name_prefix}-admin-kms"
+  user = "admin"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey",
+          "kms:CreateGrant",
+          "kms:ListGrants",
+          "kms:RevokeGrant",
+          "kms:Encrypt",
+          "kms:DescribeKey"
+        ]
+        Resource = [
+          aws_kms_key.s3.arn,
+          aws_kms_key.rds.arn
+        ]
+      }
+    ]
+  })
+}

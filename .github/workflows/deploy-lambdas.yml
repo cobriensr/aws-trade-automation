@@ -59,7 +59,11 @@ jobs:
         docker create --name lambda-container lambda-build
         docker cp lambda-container:/lambda_function.zip ../../terraform/
         docker rm lambda-container
-        aws s3 cp ../../terraform/lambda_function.zip s3://trading-lambda-deployment/lambda_function.zip
+        aws s3 cp ../../terraform/lambda_function.zip s3://trading-lambda-deployment/lambda_function.zip \
+          --sse aws:kms \
+          --sse-kms-key-id "${KMS_KEY_ARN}"
+      env:
+        KMS_KEY_ARN: ${{ secrets.KMS_KEY_ARN }}
 
     - name: Build and push Lambda 2 container
       run: |
@@ -78,7 +82,11 @@ jobs:
         docker create --name lambda3-container lambda3-build
         docker cp lambda3-container:/lambda3_function.zip ../../terraform/
         docker rm lambda3-container
-        aws s3 cp ../../terraform/lambda3_function.zip s3://trading-lambda-deployment/lambda3_function.zip
+        aws s3 cp ../../terraform/lambda3_function.zip s3://trading-lambda-deployment/lambda3_function.zip \
+          --sse aws:kms \
+          --sse-kms-key-id "${KMS_KEY_ARN}"
+      env:
+        KMS_KEY_ARN: ${{ secrets.KMS_KEY_ARN }}
 
     - name: Setup Terraform Plugin Cache
       run: |
