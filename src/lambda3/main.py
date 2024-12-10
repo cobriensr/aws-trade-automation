@@ -209,7 +209,7 @@ def place_order(
 
         # Process response
         if hasattr(order, "success_response"):
-            order_id = order.success_response.order_id
+            order_id = order.id
             try:
                 fills = client.get_fills(order_id=order_id)
                 fill_details = fills.to_dict()
