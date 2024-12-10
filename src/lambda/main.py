@@ -336,9 +336,8 @@ def handle_futures_trade(
             "status": "success",
             "order_result": order_result,
             "symbol": mapped_symbol,
-            "direction": "BUY" if signal_direction == "LONG" else "SELL"
+            "direction": "BUY" if signal_direction == "LONG" else "SELL",
         }
-
 
     except Exception as e:
         publish_metric("futures_trade_error")
