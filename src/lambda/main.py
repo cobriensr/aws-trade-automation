@@ -407,7 +407,7 @@ def lambda_handler(event, context) -> Dict:
             publish_metric(f"{exchange.lower()}_webhook_received")
 
             if exchange == "COINBASE":
-                result = invoke_lambda_function("coinbase", webhook_data)
+                result = invoke_lambda_function("trading-prod-coinbase", webhook_data)
                 response = {"statusCode": 200, "body": json.dumps(result)}
                 return response
 
