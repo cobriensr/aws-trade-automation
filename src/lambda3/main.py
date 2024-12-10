@@ -209,7 +209,7 @@ def place_order(
 
         # Process response
         if order.success:
-            order_id = order.success.order_id
+            order_id = order.order_id
             try:
                 fills = client.get_fills(order_id=order_id)
                 fill_details = fills.to_dict()
