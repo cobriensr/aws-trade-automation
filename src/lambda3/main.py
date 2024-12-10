@@ -165,6 +165,7 @@ def determine_order_size(
     MIN_SIZES = {
         "BTC": 0.000001,  # Minimum BTC order size
         "ETH": 0.001,  # Minimum ETH order size
+        "XRP": 1,  # Minimum XRP order size
     }
 
     if base_currency not in MIN_SIZES:
