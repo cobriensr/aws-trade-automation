@@ -101,8 +101,17 @@ def get_api_key() -> Tuple[str, str]:
 def determine_order_size(
     api_key: str, api_secret: str, symbol: str
 ) -> Tuple[float, float]:
-    """Determine the order size based on the symbol"""
+    """
+    Determine the order size based on the symbol
+    
+    Args:
+        api_key (str): Coinbase API key
+        api_secret (str): Coinbase API secret 
+        symbol (str): Trading symbol (e.g., 'BTCUSD')
 
+    Returns:
+        Tuple[float, float]: (long_order_size, short_order_size)
+    """
     # Initialize REST client
     client = RESTClient(api_key=api_key, api_secret=api_secret)
     logger.debug("REST client initialized successfully")
@@ -110,7 +119,7 @@ def determine_order_size(
     # Format the symbol
     formatted_symbol = f"{symbol[:3]}-{symbol[3:]}"
 
-    # Get bid/ask response
+    # Get bid/ask response 
     bid_ask_response = client.get_best_bid_ask(product_ids=[formatted_symbol])
 
     # Extract best prices from first pricebook
@@ -120,21 +129,36 @@ def determine_order_size(
     best_bid = float(pricebook["bids"][0]["price"]) if pricebook["bids"] else None
     best_ask = float(pricebook["asks"][0]["price"]) if pricebook["asks"] else None
 
+    if best_bid is None or best_ask is None:
+        raise ValueError("Unable to get valid bid/ask prices")
+
     # Get account information
     accounts = client.get_accounts(limit=1)
 
-    # Extract available balance
-    available_balance = accounts["accounts"][0]["available_balance"]["value"]
+    # Extract and convert available balance to float
+    try:
+        available_balance = float(accounts["accounts"][0]["available_balance"]["value"])
+        logger.debug(f"Available balance: {available_balance}")
 
-    # multiply available_balance by 2% to get max risk
-    max_risk = available_balance * 0.02
+        if available_balance <= 0:
+            raise ValueError("Available balance must be greater than 0")
 
-    # Calculate the order size
-    long_order_size = max_risk / best_ask
-    short_order_size = max_risk / best_bid
+        # Calculate max risk (2% of available balance)
+        max_risk = available_balance * 0.02
+        logger.debug(f"Max risk calculated: {max_risk}")
 
-    # Return the best bid and ask
-    return long_order_size, short_order_size
+        # Calculate order sizes
+        long_order_size = max_risk / best_ask
+        short_order_size = max_risk / best_bid
+
+        logger.debug(f"Calculated order sizes - Long: {long_order_size}, Short: {short_order_size}")
+        
+        return long_order_size, short_order_size
+
+    except (KeyError, ValueError, TypeError) as e:
+        logger.error(f"Error calculating order size: {str(e)}")
+        logger.error(f"Account response: {accounts}")
+        raise ValueError(f"Failed to calculate order size: {str(e)}") from e
 
 
 def place_order(
