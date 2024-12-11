@@ -1,7 +1,7 @@
 # Create ECR repository for Lambda 2
 resource "aws_ecr_repository" "lambda2" {
   name                 = "${local.name_prefix}-symbol-lookup"
-  image_tag_mutability = "MUTABLE"
+  image_tag_mutability = "IMMUTABLE"
 
   image_scanning_configuration {
     scan_on_push = true
