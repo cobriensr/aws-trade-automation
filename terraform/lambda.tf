@@ -7,11 +7,11 @@ resource "aws_lambda_function" "main" {
   handler       = "main.lambda_handler"
   runtime       = "python3.12"
   timeout       = 30
-  memory_size   = 1024
+  memory_size   = 3008
+  publish       = true
   layers = [
     "arn:aws:lambda:us-east-1:580247275435:layer:LambdaInsightsExtension:53"
   ]
-
 
   environment {
     variables = {
@@ -27,7 +27,7 @@ resource "aws_lambda_function" "main" {
       TRADOVATE_DEVICE_ID               = "${data.aws_ssm_parameter.tradovate_device_id.value}"
       TRADOVATE_CID                     = "${data.aws_ssm_parameter.tradovate_cid.value}"
       TRADOVATE_SECRET                  = "${data.aws_ssm_parameter.tradovate_secret.value}"
-      LAMBDA2_FUNCTION_NAME             = aws_lambda_function.symbol_lookup.function_name
+      LAMBDA2_FUNCTION_NAME             = "${aws_lambda_function.symbol_lookup.function_name}:${aws_lambda_alias.symbol_lookup.name}"
     }
   }
 
@@ -43,12 +43,19 @@ resource "aws_lambda_function" "main" {
   tags = local.common_tags
 }
 
+resource "aws_lambda_alias" "main" {
+  name             = "prod"
+  function_name    = aws_lambda_function.main.function_name
+  function_version = aws_lambda_function.main.version
+}
+
 # Lambda 2 (Symbol lookup)
 resource "aws_lambda_function" "symbol_lookup" {
   function_name = "${local.name_prefix}-symbol-lookup"
   role          = aws_iam_role.lambda2_role.arn
   timeout       = 30
-  memory_size   = 1024
+  memory_size   = 3008
+  publish       = true
 
   package_type = "Image"
   image_uri    = "${aws_ecr_repository.lambda2.repository_url}:latest"
@@ -75,6 +82,12 @@ resource "aws_lambda_function" "symbol_lookup" {
   tags = local.common_tags
 }
 
+resource "aws_lambda_alias" "symbol_lookup" {
+  name             = "prod"
+  function_name    = aws_lambda_function.symbol_lookup.function_name
+  function_version = aws_lambda_function.symbol_lookup.version
+}
+
 # Lambda 3 (Coinbase)
 resource "aws_lambda_function" "coinbase" {
   s3_bucket     = aws_s3_bucket.lambda_deployment.id
@@ -84,7 +97,8 @@ resource "aws_lambda_function" "coinbase" {
   handler       = "main.lambda_handler"
   runtime       = "python3.12"
   timeout       = 30
-  memory_size   = 1024
+  memory_size   = 3008
+  publish       = true
   layers = [
     "arn:aws:lambda:us-east-1:580247275435:layer:LambdaInsightsExtension:53",
   ]
@@ -110,4 +124,10 @@ resource "aws_lambda_function" "coinbase" {
   }
 
   tags = local.common_tags
+}
+
+resource "aws_lambda_alias" "coinbase" {
+  name             = "prod"
+  function_name    = aws_lambda_function.coinbase.function_name
+  function_version = aws_lambda_function.coinbase.version
 }
