@@ -68,7 +68,7 @@ jobs:
     - name: Build and push Lambda 2 container
       run: |
         cd src/lambda2
-        IMAGE_TAG="trading-prod-symbol-lookup:latest"
+        IMAGE_TAG="trading-prod-symbol-lookup:${COMMIT_SHORT_SHA}-latest"
         REGISTRY_URL="${{ steps.login-ecr.outputs.registry }}"
         FULL_IMAGE_TAG="$REGISTRY_URL/$IMAGE_TAG"
         
