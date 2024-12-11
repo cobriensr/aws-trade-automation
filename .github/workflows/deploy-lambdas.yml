@@ -68,12 +68,20 @@ jobs:
     - name: Build and push Lambda 2 container
       run: |
         cd src/lambda2
-        IMAGE_TAG="trading-prod-symbol-lookup:${COMMIT_SHORT_SHA}-latest"
+        COMMIT_SHORT_SHA=$(git rev-parse --short HEAD)
+        REPOSITORY_NAME="trading-prod-symbol-lookup"
         REGISTRY_URL="${{ steps.login-ecr.outputs.registry }}"
-        FULL_IMAGE_TAG="$REGISTRY_URL/$IMAGE_TAG"
+        
+        # Create full image tag with correct formatting
+        FULL_IMAGE_TAG="${REGISTRY_URL}/${REPOSITORY_NAME}:${COMMIT_SHORT_SHA}"
         
         docker buildx build --platform linux/amd64 --load -t $FULL_IMAGE_TAG .
         docker push $FULL_IMAGE_TAG
+
+        # Update Lambda to use the new image tag
+        aws lambda update-function-code \
+          --function-name trading-prod-symbol-lookup \
+          --image-uri "$FULL_IMAGE_TAG"
 
     - name: Build and package Lambda 3
       run: |
