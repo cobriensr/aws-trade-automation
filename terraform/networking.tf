@@ -80,3 +80,16 @@ resource "aws_nat_gateway" "main" {
     Name = "trading-${var.environment}-nat"
   })
 }
+
+# VPC Endpoint for DynamoDB
+resource "aws_vpc_endpoint" "dynamodb" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  # Add directly to the route table
+  route_table_ids = [aws_route_table.private.id]
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-dynamodb-endpoint"
+  })
+}

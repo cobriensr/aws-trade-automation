@@ -742,8 +742,8 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
           "dynamodb:Scan"
         ]
         Resource = [
-          aws_dynamodb_table.tradovate_tokens.arn,
-          "${aws_dynamodb_table.tradovate_tokens.arn}/index/*"
+          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.name_prefix}-tradovate-tokens",
+          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.name_prefix}-tradovate-tokens/index/*"
         ]
       }
     ]
