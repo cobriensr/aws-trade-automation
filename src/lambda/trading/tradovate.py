@@ -4,6 +4,7 @@ import logging
 from typing import Tuple, Optional, Dict, List
 from datetime import datetime
 import requests
+from trading.tradovate_client import TradovateClient
 
 # Configure logger
 logger = logging.getLogger()
@@ -15,6 +16,8 @@ LIVE = "https://live.tradovateapi.com/v1"
 MD = "https://md.tradovateapi.com/v1"
 
 
+logger = logging.getLogger()
+
 def get_auth_token(
     username: str, password: str, device_id: str, cid: str, secret: str
 ) -> Tuple[Optional[str], Optional[datetime]]:
@@ -25,34 +28,21 @@ def get_auth_token(
         Tuple[Optional[str], Optional[datetime]]: a tuple containing the access token and expiration time,
         or (None, None) if authentication fails
     """
-    # Create request body
-    body = {
-        "name": username,
-        "password": password,
-        "appId": "Automation",
-        "appVersion": "0.0.1",
-        "deviceId": device_id,
-        "cid": int(cid),
-        "sec": secret,
-    }
-    # Set headers
-    headers = {"Content-Type": "application/json", "Accept": "application/json"}
-    # Make POST request to get access token
-    response = requests.post(
-        f"{DEMO}/auth/accesstokenrequest", headers=headers, timeout=5, json=body
-    )
-    # Get JSON data from response
-    json_data = response.json()
-    # Check if response has expected structure
     try:
-        access_token = json_data["accessToken"]
-        expiration_time = json_data["expirationTime"]
-        expiration_datetime = datetime.fromisoformat(
-            expiration_time.replace("Z", "+00:00")
+        client = TradovateClient(
+            username=username,
+            password=password,
+            device_id=device_id,
+            cid=cid,
+            secret=secret
         )
-        return access_token, expiration_datetime
-    except KeyError as e:
-        raise KeyError(f"Unexpected response structure. Missing key: {e}") from e
+        # Use the token manager's new interface which only needs get_new_token_func
+        return client.token_manager.get_valid_token(
+            get_new_token_func=client.get_new_token
+        )
+    except Exception as e:
+        logger.error(f"Failed to get auth token: {str(e)}")
+        return None, None
 
 
 def get_accounts(access_token: str) -> int:
