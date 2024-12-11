@@ -369,7 +369,13 @@ def handle_futures_trade(
             ) from e
 
         # Get default account ID first
-        account_id = get_accounts(access_token)
+        account_id = get_accounts(
+            username=username,
+            password=password,
+            device_id=device_id,
+            cid=cid,
+            secret=tradovate_secret,
+        )
 
         # Get current positions
         positions = get_all_positions(access_token)
@@ -528,7 +534,13 @@ def lambda_handler(event, context) -> Dict:
                 cid=creds[5],
                 secret=creds[6],
             )
-            account_id = get_accounts(token)
+            account_id = get_accounts(
+                username=creds[2],
+                password=creds[3],
+                device_id=creds[4],
+                cid=creds[5],
+                secret=creds[6],
+            )
             balance = get_cash_balance_snapshot(token, account_id)
             response = {"statusCode": 200, "body": json.dumps(balance)}
             return response

@@ -5,6 +5,7 @@ from typing import Dict, Optional, Tuple
 import logging
 import requests
 from trading.token_manager import TokenManager
+from trading.cache_manager import TradovateCache
 
 logger = logging.getLogger()
 
@@ -32,6 +33,7 @@ class TradovateClient:
             else "https://live.tradovateapi.com/v1"
         )
         self.token_manager = TokenManager()
+        self.cache = TradovateCache()
 
     def get_new_token(self) -> Tuple[Optional[str], Optional[datetime]]:
         """Get new auth token from Tradovate."""
@@ -112,9 +114,32 @@ class TradovateClient:
 
     # API Methods
     def get_accounts(self) -> int:
-        """Get the default account ID."""
-        response = self._make_request("GET", "account/list")
-        return response[0]["id"]
+        """Get account ID with caching."""
+        # Try to get from cache first
+        cached_account_id = self.cache.get_cached_account(self.username)
+        if cached_account_id is not None:
+            logger.info("Using cached account ID")
+            return cached_account_id
+
+        # If not in cache, fetch from API
+        token = self.get_valid_token()
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+
+        response = requests.get(
+            f"{self.base_url}/account/list", headers=headers, timeout=5
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        account_id = data[0]["id"]
+
+        # Cache the account ID
+        self.cache.cache_account(self.username, account_id)
+
+        return account_id
 
     def get_positions(self) -> list:
         """Get all positions with non-zero netPos."""

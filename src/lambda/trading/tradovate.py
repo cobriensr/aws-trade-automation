@@ -15,8 +15,8 @@ DEMO = "https://demo.tradovateapi.com/v1"
 LIVE = "https://live.tradovateapi.com/v1"
 MD = "https://md.tradovateapi.com/v1"
 
-
 logger = logging.getLogger()
+
 
 def get_auth_token(
     username: str, password: str, device_id: str, cid: str, secret: str
@@ -34,9 +34,10 @@ def get_auth_token(
             password=password,
             device_id=device_id,
             cid=cid,
-            secret=secret
+            secret=secret,
+            demo=True,
         )
-        # Use the token manager's new interface which only needs get_new_token_func
+        # Get a valid token
         return client.token_manager.get_valid_token(
             get_new_token_func=client.get_new_token
         )
@@ -45,7 +46,9 @@ def get_auth_token(
         return None, None
 
 
-def get_accounts(access_token: str) -> int:
+def get_accounts(
+    username: str, password: str, device_id: str, cid: str, secret: str
+) -> Optional[int]:
     """
     Get list of accounts from Tradovate API.
 
@@ -53,19 +56,22 @@ def get_accounts(access_token: str) -> int:
         access_token (str): The authentication token for API access
 
     Returns:
-        dict: JSON response containing account information
+        int: The account ID
     """
-    # Set headers
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {access_token}",
-    }
-    # Make GET request to get account list
-    response = requests.get(f"{DEMO}/account/list", headers=headers, timeout=5)
-    # Return JSON data from response
-    data = response.json()
-    account_id = data[0]["id"]
-    return account_id
+    try:
+        client = TradovateClient(
+            username=username,
+            password=password,
+            device_id=device_id,
+            cid=cid,
+            secret=secret,
+            demo=True,
+        )
+        # Get account id number
+        return client.get_accounts()
+    except Exception as e:
+        logger.error(f"Failed to get account: {str(e)}")
+        return None
 
 
 def get_cash_balance_snapshot(access_token: str, account_id: str) -> Dict:
