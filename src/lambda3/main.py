@@ -33,6 +33,24 @@ def generate_order_id():
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
+def monitor_concurrent_executions():
+    """Monitor concurrent executions and publish metrics"""
+    try:
+        metrics = [
+            {
+                "MetricName": "ConcurrentExecutions",
+                "Value": 1,
+                "Unit": "Count",
+                "Timestamp": datetime.now(timezone.utc),
+            }
+        ]
+        
+        cloudwatch.put_metric_data(
+            Namespace="Trading/Coinbase",
+            MetricData=metrics
+        )
+    except Exception as e:
+        logger.error(f"Error publishing concurrency metrics: {str(e)}")
 
 def configure_logger(context) -> None:
     """Configure logger with Lambda context information"""
@@ -68,6 +86,23 @@ def publish_metric(name: str, value: float = 1, unit: str = "Count") -> None:
         )
     except Exception as e:
         logger.error(f"Failed to publish metric {name}: {str(e)}")
+
+def track_error_rate(has_error: bool):
+    """Track error rate for the function"""
+    try:
+        cloudwatch.put_metric_data(
+            Namespace="Trading/SymbolLookup",
+            MetricData=[
+                {
+                    "MetricName": "ErrorRate",
+                    "Value": 1 if has_error else 0,
+                    "Unit": "Count",
+                    "Timestamp": datetime.now(timezone.utc),
+                }
+            ]
+        )
+    except Exception as e:
+        logger.error(f"Error publishing error rate metric: {str(e)}")
 
 
 def get_api_key() -> Tuple[str, str]:
@@ -631,8 +666,11 @@ def lambda_handler(event, context) -> Dict:
     """Enhanced Lambda handler with comprehensive error handling and metrics"""
     request_id = context.aws_request_id
     start_time = time.time()
+    has_error = False
 
     try:
+        # Track concurrent executions at start
+        monitor_concurrent_executions()
         configure_logger(context)
         logger.info(f"Processing request {request_id}")
 
@@ -700,6 +738,7 @@ def lambda_handler(event, context) -> Dict:
             logger.debug(f"Full webhook data: {json.dumps(webhook_data)}")
 
         except json.JSONDecodeError as e:
+            has_error = True
             publish_metric("invalid_webhook_error")
             return {
                 "statusCode": 400,
@@ -712,6 +751,7 @@ def lambda_handler(event, context) -> Dict:
                 ),
             }
         except KeyError as e:
+            has_error = True
             publish_metric("invalid_webhook_error")
             return {
                 "statusCode": 400,
@@ -724,6 +764,7 @@ def lambda_handler(event, context) -> Dict:
                 ),
             }
         except Exception as e:
+            has_error = True
             publish_metric("invalid_webhook_error")
             return {
                 "statusCode": 400,
@@ -754,6 +795,7 @@ def lambda_handler(event, context) -> Dict:
             }
 
         except CoinbaseError as e:
+            has_error = True
             publish_metric("trading_error")
             return {
                 "statusCode": 400,
@@ -761,6 +803,7 @@ def lambda_handler(event, context) -> Dict:
             }
 
     except Exception as e:
+        has_error = True
         publish_metric("lambda_error")
         logger.error(f"Unexpected error: {str(e)}")
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
@@ -776,6 +819,8 @@ def lambda_handler(event, context) -> Dict:
         }
 
     finally:
+        # Track error rate
+        track_error_rate(has_error)
         # Record execution metrics
         duration = (time.time() - start_time) * 1000
         publish_metric("lambda_duration", duration, "Milliseconds")

@@ -485,3 +485,63 @@ resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   retention_in_days = 30
   tags              = local.common_tags
 }
+
+# Main function high concurrency alarm
+resource "aws_cloudwatch_metric_alarm" "lambda_high_concurrency" {
+  alarm_name          = "${local.name_prefix}-high-concurrency"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "ConcurrentExecutions"
+  namespace           = "AWS/Lambda"
+  period              = "60"
+  statistic           = "Maximum"
+  threshold           = "8" # Alert at 8 concurrent executions
+  alarm_description   = "Alert when trading function concurrency is high"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.main.function_name
+  }
+
+  tags = local.common_tags
+}
+
+# Symbol lookup function high concurrency alarm
+resource "aws_cloudwatch_metric_alarm" "lambda2_high_concurrency" {
+  alarm_name          = "${local.name_prefix}-lambda2-high-concurrency"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "ConcurrentExecutions"
+  namespace           = "AWS/Lambda"
+  period              = "60"
+  statistic           = "Maximum"
+  threshold           = "2" # Alert at 2 concurrent executions
+  alarm_description   = "Alert when symbol lookup function concurrency is high"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.symbol_lookup.function_name
+  }
+
+  tags = local.common_tags
+}
+
+# Coinbase function high concurrency alarm
+resource "aws_cloudwatch_metric_alarm" "lambda3_high_concurrency" {
+  alarm_name          = "${local.name_prefix}-lambda3-high-concurrency"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "ConcurrentExecutions"
+  namespace           = "AWS/Lambda"
+  period              = "60"
+  statistic           = "Maximum"
+  threshold           = "2" # Alert at 2 concurrent executions
+  alarm_description   = "Alert when coinbase function concurrency is high"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.coinbase.function_name
+  }
+
+  tags = local.common_tags
+}

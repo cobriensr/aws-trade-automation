@@ -12,6 +12,7 @@ resource "aws_lambda_function" "main" {
     "arn:aws:lambda:us-east-1:580247275435:layer:LambdaInsightsExtension:53"
   ]
 
+
   environment {
     variables = {
       AWS_LAMBDA_FUNCTION_TIMEOUT       = "30"
