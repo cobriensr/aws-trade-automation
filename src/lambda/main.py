@@ -41,6 +41,7 @@ logger.setLevel(logging.DEBUG)  # Set to DEBUG for development, INFO for product
 class TradingWebhookError(Exception):
     """Custom exception for webhook processing errors"""
 
+
 def monitor_concurrent_executions(context):
     try:
         metrics = [
@@ -55,15 +56,15 @@ def monitor_concurrent_executions(context):
                 "Value": 1,
                 "Unit": "Count",
                 "Timestamp": datetime.now(timezone.utc),
-            }
+            },
         ]
-        
+
         cloudwatch.put_metric_data(
-            Namespace=f"Trading/Webhook/{context.function_name}",
-            MetricData=metrics
+            Namespace=f"Trading/Webhook/{context.function_name}", MetricData=metrics
         )
     except Exception as e:
         logger.error(f"Error publishing concurrency metrics: {str(e)}")
+
 
 def publish_metric(name: str, value: float = 1, unit: str = "Count") -> None:
     """Publish a metric to CloudWatch"""
@@ -82,6 +83,7 @@ def publish_metric(name: str, value: float = 1, unit: str = "Count") -> None:
     except Exception as e:
         logger.error(f"Failed to publish metric {name}: {str(e)}")
 
+
 def track_error_rate(has_error: bool):
     """Track error rate for the function"""
     try:
@@ -94,7 +96,7 @@ def track_error_rate(has_error: bool):
                     "Unit": "Count",
                     "Timestamp": datetime.now(timezone.utc),
                 }
-            ]
+            ],
         )
     except Exception as e:
         logger.error(f"Error publishing error rate metric: {str(e)}")
@@ -349,7 +351,9 @@ def handle_futures_trade(
 
             if symbol not in mapping_dict:
                 logger.error(f"Symbol mapping error - Input symbol: {symbol}")
-                logger.error(f"Available mappings: {json.dumps(mapping_dict, indent=2)}")
+                logger.error(
+                    f"Available mappings: {json.dumps(mapping_dict, indent=2)}"
+                )
                 raise TradingWebhookError(f"Symbol not found in mapping: {symbol}")
 
             mapped_symbol = mapping_dict[symbol]
@@ -372,9 +376,7 @@ def handle_futures_trade(
 
         if positions:
             # There are existing positions - liquidate and then place new order
-            logger.info(
-                "Found existing positions, liquidating first"
-            )
+            logger.info("Found existing positions, liquidating first")
             contracts_ids = [position["contractId"] for position in positions]
             contract_names_with_ids = get_contract_info(
                 token=access_token, contract_ids=contracts_ids
@@ -385,7 +387,7 @@ def handle_futures_trade(
 
             # Liquidate all existing positions
             for contract in contract_names_with_ids:
-            # Only liquidate if there's an actual position
+                # Only liquidate if there's an actual position
                 if mapped_symbol in contract["contractName"]:
                     try:
                         liquidate_result = liquidate_position(
@@ -470,7 +472,7 @@ def handle_futures_trade(
 
 def lambda_handler(event, context) -> Dict:
     """Main Lambda handler with comprehensive error handling and logging"""
-    
+
     # Add at the start of lambda_handler
     request_id = context.aws_request_id
     start_time = time.time()
@@ -480,9 +482,13 @@ def lambda_handler(event, context) -> Dict:
     try:
         # Configure logging
         configure_logger(context)
-        logger.info(f"Lambda cold start check - Function memory: {context.memory_limit_in_mb}MB")
-        logger.info(f"Concurrent execution context: {context.function_name}-{context.aws_request_id}")
-        
+        logger.info(
+            f"Lambda cold start check - Function memory: {context.memory_limit_in_mb}MB"
+        )
+        logger.info(
+            f"Concurrent execution context: {context.function_name}-{context.aws_request_id}"
+        )
+
         # Monitor concurrent executions
         monitor_concurrent_executions(context)
 
@@ -533,7 +539,7 @@ def lambda_handler(event, context) -> Dict:
             symbol = webhook_data["market_data"]["symbol"]
             exchange = webhook_data["market_data"]["exchange"]
             timestamp = webhook_data["market_data"].get("timestamp")
-            
+
             # Log beginning of each symbol's processing
             logger.info("==================== BEGIN PROCESSING ====================")
             logger.info(f"Processing webhook - Symbol: {symbol}")
@@ -545,7 +551,9 @@ def lambda_handler(event, context) -> Dict:
 
             # Add detailed request logging
             logger.info(f"Full webhook payload: {json.dumps(webhook_data, indent=2)}")
-            logger.info(f"Processing webhook details - Exchange: {exchange}, Symbol: {symbol}, Direction: {signal_direction}")
+            logger.info(
+                f"Processing webhook details - Exchange: {exchange}, Symbol: {symbol}, Direction: {signal_direction}"
+            )
             publish_metric(f"{exchange.lower()}_webhook_received")
 
             if exchange == "COINBASE":
@@ -587,13 +595,25 @@ def lambda_handler(event, context) -> Dict:
                 return response
 
             # Add more detailed error for unsupported exchange
-            logger.error("Supported exchanges are: NYMEX, COMEX, CBOT, CME, ICE, OANDA, COINBASE")
+            logger.error(
+                "Supported exchanges are: NYMEX, COMEX, CBOT, CME, ICE, OANDA, COINBASE"
+            )
             response = {
                 "statusCode": 400,
-                "body": json.dumps({
-                    "error": f"Unsupported exchange: {exchange}",
-                    "supported_exchanges": ["NYMEX", "COMEX", "CBOT", "CME", "ICE", "OANDA", "COINBASE"]
-                }),
+                "body": json.dumps(
+                    {
+                        "error": f"Unsupported exchange: {exchange}",
+                        "supported_exchanges": [
+                            "NYMEX",
+                            "COMEX",
+                            "CBOT",
+                            "CME",
+                            "ICE",
+                            "OANDA",
+                            "COINBASE",
+                        ],
+                    }
+                ),
             }
             return response
 
@@ -616,15 +636,19 @@ def lambda_handler(event, context) -> Dict:
         has_error = True
         logger.error(f"Trading webhook error: {str(e)}")
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
-        logger.error(f"Request details - Path: {path}, Exchange: {exchange if 'exchange' in locals() else 'N/A'}")
+        logger.error(
+            f"Request details - Path: {path}, Exchange: {exchange if 'exchange' in locals() else 'N/A'}"
+        )
         response = {
             "statusCode": 400,
-            "body": json.dumps({
-                "error": str(e),
-                "error_type": "TradingWebhookError",
-                "request_id": request_id,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            })
+            "body": json.dumps(
+                {
+                    "error": str(e),
+                    "error_type": "TradingWebhookError",
+                    "request_id": request_id,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            ),
         }
         return response
 

@@ -33,6 +33,7 @@ def generate_order_id():
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
+
 def monitor_concurrent_executions():
     """Monitor concurrent executions and publish metrics"""
     try:
@@ -44,13 +45,11 @@ def monitor_concurrent_executions():
                 "Timestamp": datetime.now(timezone.utc),
             }
         ]
-        
-        cloudwatch.put_metric_data(
-            Namespace="Trading/Coinbase",
-            MetricData=metrics
-        )
+
+        cloudwatch.put_metric_data(Namespace="Trading/Coinbase", MetricData=metrics)
     except Exception as e:
         logger.error(f"Error publishing concurrency metrics: {str(e)}")
+
 
 def configure_logger(context) -> None:
     """Configure logger with Lambda context information"""
@@ -87,6 +86,7 @@ def publish_metric(name: str, value: float = 1, unit: str = "Count") -> None:
     except Exception as e:
         logger.error(f"Failed to publish metric {name}: {str(e)}")
 
+
 def track_error_rate(has_error: bool):
     """Track error rate for the function"""
     try:
@@ -99,7 +99,7 @@ def track_error_rate(has_error: bool):
                     "Unit": "Count",
                     "Timestamp": datetime.now(timezone.utc),
                 }
-            ]
+            ],
         )
     except Exception as e:
         logger.error(f"Error publishing error rate metric: {str(e)}")

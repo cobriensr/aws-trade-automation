@@ -61,6 +61,7 @@ def configure_logger(context) -> None:
     logger.info(f"Function Memory: {context.memory_limit_in_mb}MB")
     logger.info(f"Remaining Time: {context.get_remaining_time_in_millis()}ms")
 
+
 def monitor_concurrent_executions():
     """Monitor concurrent executions and publish metrics"""
     try:
@@ -72,13 +73,11 @@ def monitor_concurrent_executions():
                 "Timestamp": datetime.now(timezone.utc),
             }
         ]
-        
-        cloudwatch.put_metric_data(
-            Namespace="Trading/SymbolLookup",
-            MetricData=metrics
-        )
+
+        cloudwatch.put_metric_data(Namespace="Trading/SymbolLookup", MetricData=metrics)
     except Exception as e:
         logger.error(f"Error publishing concurrency metrics: {str(e)}")
+
 
 def track_error_rate(has_error: bool):
     """Track error rate for the function"""
@@ -92,10 +91,11 @@ def track_error_rate(has_error: bool):
                     "Unit": "Count",
                     "Timestamp": datetime.now(timezone.utc),
                 }
-            ]
+            ],
         )
     except Exception as e:
         logger.error(f"Error publishing error rate metric: {str(e)}")
+
 
 def get_api_key() -> str:
     """Get Databento API key with enhanced error handling"""
@@ -246,7 +246,7 @@ def lambda_handler(event, context) -> Dict:
     try:
         # Track concurrent executions at start
         monitor_concurrent_executions()
-        
+
         # Configure logging
         configure_logger(context)
         logger.info(f"Processing request {request_id}")
@@ -306,7 +306,7 @@ def lambda_handler(event, context) -> Dict:
     finally:
         # Track error rate
         track_error_rate(has_error)
-        
+
         # Calculate and record duration
         duration = (time.time() - start_time) * 1000
         publish_metric("request_duration", duration, "Milliseconds")
