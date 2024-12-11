@@ -10,6 +10,7 @@ disable=
     C0305,  # trailing-newlines
     C0116,  # missing-function-docstring
     C0304,  # missing-final-newline
+    R0903,  # too-few-public-methods
     R0914,  # too-many-locals
     R0911,  # too-many-return-statements
     R0912,  # too-many-branches
