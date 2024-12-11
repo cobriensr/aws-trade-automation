@@ -105,3 +105,31 @@ resource "aws_rds_cluster_instance" "trading_db_instances" {
   engine             = aws_rds_cluster.trading_db.engine
   engine_version     = aws_rds_cluster.trading_db.engine_version
 }
+
+# DynamoDB table for Tradovate token management
+resource "aws_dynamodb_table" "tradovate_tokens" {
+  name         = "${local.name_prefix}-tradovate-tokens"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.rds.arn # Reusing your existing KMS key
+  }
+
+  tags = local.common_tags
+}
