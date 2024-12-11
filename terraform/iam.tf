@@ -743,7 +743,9 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
         ]
         Resource = [
           "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.name_prefix}-tradovate-tokens",
-          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.name_prefix}-tradovate-tokens/index/*"
+          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.name_prefix}-tradovate-tokens/index/*",
+          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/tradovate-cache",
+          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/tradovate-cache/index/*"
         ]
       }
     ]
