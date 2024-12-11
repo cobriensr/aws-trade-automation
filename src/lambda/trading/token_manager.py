@@ -12,7 +12,7 @@ logger = logging.getLogger()
 class TokenManager:
     """Manages Tradovate authentication tokens using DynamoDB."""
 
-    def __init__(self, table_name: str = "tradovate-tokens"):
+    def __init__(self, table_name: str = "trading-prod-tradovate-tokens"):
         self.dynamodb = boto3.resource("dynamodb")
         self.table = self.dynamodb.Table(table_name)
         self.TOKEN_KEY = "CURRENT_TOKEN"

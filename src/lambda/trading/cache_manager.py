@@ -12,7 +12,7 @@ logger = logging.getLogger()
 class TradovateCache:
     """Manages Tradovate data caching using DynamoDB."""
 
-    def __init__(self, table_name: str = "tradovate-cache"):
+    def __init__(self, table_name: str = "trading-prod-tradovate-cache"):
         self.dynamodb = boto3.resource("dynamodb")
         self.table = self.dynamodb.Table(table_name)
         self.ACCOUNT_CACHE_KEY = "ACCOUNT_INFO"
