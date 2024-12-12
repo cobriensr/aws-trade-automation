@@ -22,12 +22,6 @@ This project implements an automated trading system that executes trades based o
    - Blue indicates bullish trend
    - Red indicates bearish trend
 
-3. Directional Movement Index (15-minute timeframe)
-
-   - Manages exits and re-entries
-   - DI+ and DI- crossovers signal momentum shifts
-   - Used to protect profits and re-enter continuing trends
-
 This multi-timeframe approach combines:
 
 - Quick execution (1-minute)
@@ -36,20 +30,16 @@ This multi-timeframe approach combines:
 
 ### Strategy Logic
 
-1. Entry Conditions:
+1. Entry and Exit Conditions:
    - Long Entry: Trend Validator turns Blue from Red
    - Short Entry: Trend Validator turns Red from Blue
    - Entry execution is immediate upon color change
 
-2. Exit Conditions: (Not Yet Implemented)
-   - Long Exit: DI- crosses above DI+
-   - Short Exit: DI+ crosses above DI-
-   - Exits protect profits when momentum shifts
-
-3. Re-entry Conditions: (Not Yet Implemented)
-   - Re-enter Long: DI+ crosses above DI- while Trend Validator is still Blue
-   - Re-enter Short: DI- crosses above DI+ while Trend Validator is still Red
-   - Allows catching continuation moves in strong trends
+2. Unique Broker Trade Flow:
+   - Coinbase is spot trading so the buy flow is different than the sell flow
+     - You can buy any amount of asset, but can only sell what amount is in the wallet
+   - Tradovate and Oanda liquidate an existing position before opening a new position
+     - Opposite direction trades cannot be entered simultaneously
 
 ## System Architecture
 
@@ -61,53 +51,60 @@ The above diagram illustrates the complete flow of the trading system, from Trad
 
 ### AWS Infrastructure
 
-1. API Gateway
+1. API Gateway & Webhooks
    - Regional endpoint for low latency
    - Handles TradingView webhook requests
    - Basic request validation and throttling
+   - Dedicated endpoints: /oandastatus, /healthcheck, /tradovatestatus
+   - Integrated with AWS Lambda through direct invocation
 
-2. Lambda Function
-   - 1024MB memory for optimal performance
-   - 15-second timeout for trade processing
-   - Python 3.12 runtime
-   - Elastic Container Registry
+2. Lambda Function & Container Infrastructure
+   - Hosted on Amazon Elastic Container Registry (ECR)
+   - Source code managed through GitHub with vulnerability scanning
+   - Deployed in private subnet with VPC NAT gateway access
+   - Processes trading decisions using multiple broker APIs (OANDA, Tradovate, Coinbase)
+   - Integrates with Databento API for market data
 
-3. Aurora PostgreSQL Serverless v2
-   - Serverless auto-scaling (8-16 ACUs)
+3. Database & Caching
+   - Aurora PostgreSQL Serverless v2 for trade logging
+   - DynamoDB for high-performance data storage
+   - Dedicated Tradovate cache and token management
    - Multi-AZ deployment for high availability
-   - Trade logging and position tracking
-   - Secure VPC deployment with private subnets
 
-4. Networking
-   - Custom VPC with public/private subnets
-   - NAT Gateway for Lambda internet access
-   - Security groups for access control
-   - Route tables for traffic management
+4. Networking & Security
+   - Virtual Private Cloud (VPC) with public/private subnet architecture
+   - VPC NAT gateway for outbound internet access
+   - VPC Internet Gateway for public subnet connectivity
+   - Security groups and network ACLs for access control
+   - Private subnet isolation for Lambda and database resources
 
-5. Parameter Store
-   - Secure storage for authentication tokens
-   - Manages Tradovate API credentials
-   - Handles token refresh lifecycle
-   - Encrypted storage for sensitive data
+5. Monitoring & Logging
+   - AWS CloudTrail for API and resource auditing
+   - CloudWatch Logs for Lambda function monitoring
+   - Custom monitoring dashboard for system metrics
+   - CloudWatch Alarms for critical system alerts
+   - SNS Topic integration for email notifications
 
-### Alert Processing Flow
+6. Security & Configuration
+   - Parameter Store for secure credential management
+   - Encrypted storage for broker API tokens
+   - Secure token refresh mechanism for trading APIs
+   - GitHub-integrated vulnerability scanning
+   - Container image security scanning in ECR
 
-1. TradingView Alert Reception:
-   - Webhook triggers API Gateway
-   - Payload forwarded to Lambda
-   - Initial validation performed
+7. Trading Integration
+   - Multiple broker API support:
+   - OANDA for forex trading
+   - Tradovate for futures trading
+   - Coinbase for cryptocurrency trading
+   - Databento integration for market data feeds
+   - TradingView webhook integration for trade signals
 
-2. Trade Execution:
-   - OANDA API called for order placement
-   - Tradovate and Coinbase are not yet implemented
-   - Order confirmation received
-   - State updated based on execution
+This infrastructure provides a secure, scalable, and highly available trading system with comprehensive monitoring and multiple broker integrations.
 
 ## Implementation Details
 
-## Trading View Alerts Setup
-
-### Trend Validator Alert
+### Trading View Alerts Setup
 
 The system routes trades to different brokers based on both the instrument type and exchange:
 
@@ -117,9 +114,11 @@ OANDA: All Forex pairs (e.g., EUR_USD, GBP_JPY) with exchange = OANDA
 Coinbase: All crypto pairs (e.g., BTC_USD, ETH_USD) with echange = Coinbase
 Tradovate: All Futures contracts with their respective exchanges:
 
-- CME: ES (S&P 500), NQ (Nasdaq), RTY (Russell)
+- CME: ES (S&P 500), NQ (Nasdaq)
+- CME_MINI: RTY (Russell), MES (S&P 500), MNQ (Nasdaq)
 - CBOT: YM (Dow)
-- NYMEX: CL (Crude Oil), GC (Gold)
+- NYMEX: CL (Crude Oil)
+- COMEX: GC (Gold), SI (Silver)
 
 The webhook payload structure remains the same for both instrument types, with the routing logic handled by the Lambda function based on the symbol:
 
@@ -191,7 +190,7 @@ The webhook payload structure remains the same for both instrument types, with t
 - Tradovate account
 - Coinbase Account
 - Required IAM Permissions
-  - Parameter Store access:
+- Parameter Store access:
 
   ```json
   {
@@ -272,34 +271,50 @@ The webhook payload structure remains the same for both instrument types, with t
 
 ### Cost Optimization
 
-Approximate monthly costs:
+Approximate Monthly Costs:
 
 1. AWS Service Costs:
-   - Lambda: $5-10 (based on ~100k invocations)
-   - NAT Gateway: $32 (single AZ)
-   - API Gateway: $3.50-$7.00 (based on ~100k requests)
-   - Aurora Serverless v2: $8-10
-   - Parameter Store: Free for standard parameters
-   - CloudWatch Logs: $1-2
-   - Total AWS Costs: $49.50-61.00
+
+    - Lambda: $5-10 (based on ~100k invocations)
+    - NAT Gateway: $32 (single AZ)
+    - API Gateway: $3.50-$7.00 (based on ~100k requests)
+    - Aurora Serverless v2: $8-10
+    - Parameter Store: Free for standard parameters
+    - CloudWatch Logs: $1-2
+    - DynamoDB: $2-5 (based on moderate usage)
+    - Amazon ECR: $1-2 (container storage)
+    - CloudTrail: Free (management events only)
+    - SNS Email Notifications: Free (under 1000 emails/month)
+    - CloudWatch Alarms: $1-2 (5-10 metrics)
+    - CloudWatch Monitoring: $2-4 (custom metrics and dashboard)
+    - Total AWS Costs: $58-76/month
 
 2. External Service Costs:
-   - TradingView Pro: $15-30/month
-   - OANDA Account: Free (commission per trade)
-   - Tradovate Account: $99/month (includes data feed)
-   - Coinbase Account: Free (comission per trade)
-   - Tradovate API Access: $25/month
-   - Total External Costs: $139-154/month
 
-Total Estimated Monthly Operating Costs: $181.50-204.00/month
+    - TradingView: $15-$30 (different tiers available)
+    - OANDA Account: Free (commission per trade)
+    - Tradovate Account: $99/month (different tiers available)
+    - Coinbase Account: Free (commission per trade)
+    - Tradovate API Access: $25/month
+    - Databento API: $0-$50/month (depends on live vs historical data)
+    - GitHub: Free (public repositories)
+    - Total External Costs: $189-204/month
 
-Notes:
+3. Data Transfer Costs:
 
-- Costs may vary based on trading volume
-- Parameter Store standard tier is free for first 10,000 parameters
-- CloudWatch costs depend on log retention and volume
-- External service costs may vary based on subscription level
-- Tradovate account costs can increase or decrease based on tier or lifetime plan
+    - VPC Data Transfer: $2-5
+    - API Gateway to Lambda: $1-2
+    - CloudWatch Logs Transfer: $1-2
+    - Total Data Transfer: $4-9/month
+    - Total Estimated Monthly Operating Costs: $251-289/month
+
+4. Notes:
+    - Costs are estimates and may vary based on actual usage
+    - Data transfer costs might increase with higher trading volumes
+    - GitHub costs may apply if private repositories are needed
+    - Additional costs may apply for increased market data coverage from Databento
+    - Broker commissions not included as they vary by trading volume
+    - AWS costs might be eligible for Free Tier benefits in first 12 months
 
 ## Security
 
