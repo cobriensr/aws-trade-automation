@@ -102,6 +102,63 @@ The above diagram illustrates the complete flow of the trading system, from Trad
 
 This infrastructure provides a secure, scalable, and highly available trading system with comprehensive monitoring and multiple broker integrations.
 
+### Security Scanning
+
+The project implements comprehensive security scanning through GitHub Actions, running daily and on all pull requests targeting the main branch. The scanning pipeline includes:
+
+1. Infrastructure Scanning
+   - Terraform security scanning using tfsec
+   - Configuration assessment for security best practices
+   - Severity levels: CRITICAL, HIGH, MEDIUM
+   - Automated reporting in pull requests
+
+2. Container Security (ECR)
+   - Trivy container scanning for each Lambda function
+   - Base image vulnerability assessment
+   - Dependency security checks
+   - Docker configuration best practices
+   - Regular scheduled scans of deployed images
+
+3. Python Dependency Scanning
+   - Safety checks for Python packages
+   - Known vulnerability detection
+   - Regular dependency updates
+   - Requirements.txt security validation
+   - Automated dependency version checking
+
+4. File System Security
+   - Source code security scanning
+   - Secret detection
+   - File permission checks
+   - Sensitive data exposure prevention
+
+5. Automated Security Workflows
+   - Daily automated scans
+   - Pull request integration
+   - SARIF format reporting
+   - Security findings as PR comments
+   - Separate scanning categories:
+     - Filesystem security
+     - Container security
+     - Infrastructure as Code
+     - Dependencies
+     - Configuration
+
+6. Scanning Response Protocol
+   - Automated issue creation for findings
+   - Severity-based prioritization
+   - Required reviews for security issues
+   - Documented remediation steps
+   - Regular security review meetings
+
+7. Continuous Monitoring
+   - Integration with GitHub Security tab
+   - Historical security metrics tracking
+   - Trend analysis for vulnerabilities
+   - Regular security status reports
+
+The security scanning configuration is maintained in `.github/workflows/security-scans.yml` and includes fail-safe mechanisms to ensure builds don't fail on non-critical security findings while still maintaining visibility of all security concerns.
+
 ## Implementation Details
 
 ### Trading View Alerts Setup
