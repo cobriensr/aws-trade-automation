@@ -2,7 +2,7 @@
 resource "aws_secretsmanager_secret" "rds_password" {
   name        = "${local.name_prefix}-rds-master-password"
   description = "Master password for RDS cluster"
-  kms_key_id  = aws_kms_key.rds.id # Use the same KMS key we created for RDS
+  kms_key_id  = aws_kms_key.rds.id
 
   tags = local.common_tags
 }
@@ -70,7 +70,7 @@ resource "aws_rds_cluster" "trading_db" {
   engine_version     = "16.4"
   database_name      = "tradeAutomation"
   master_username    = "postgres"
-  master_password    = random_password.rds_password.result # Add the password here
+  master_password    = random_password.rds_password.result
 
   # Encryption configuration
   storage_encrypted = true
@@ -128,13 +128,12 @@ resource "aws_dynamodb_table" "tradovate_tokens" {
 
   server_side_encryption {
     enabled     = true
-    kms_key_arn = aws_kms_key.rds.arn # Reusing your existing KMS key
+    kms_key_arn = aws_kms_key.rds.arn
   }
 
   tags = local.common_tags
 }
 
-# Add to database.tf
 resource "aws_dynamodb_table" "tradovate_cache" {
   name         = "${local.name_prefix}-tradovate-cache"
   billing_mode = "PAY_PER_REQUEST"

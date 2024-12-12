@@ -55,7 +55,7 @@ resource "aws_cloudwatch_metric_alarm" "concurrent_executions_high" {
   statistic           = "Maximum"
   threshold           = 8 # Alert when close to max concurrency
   alarm_description   = "This metric monitors lambda concurrent executions"
-  alarm_actions       = [aws_sns_topic.alerts.arn] # Assuming you have an SNS topic for alerts
+  alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
     FunctionName = aws_lambda_function.main.function_name
