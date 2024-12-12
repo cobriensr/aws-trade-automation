@@ -37,6 +37,40 @@ lambda_client = boto3.client("lambda")
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)  # Set to DEBUG for development, INFO for production
 
+def handle_healthcheck() -> Dict:
+    import psutil
+    import platform
+    from datetime import datetime, timezone
+
+    # Get memory info
+    memory = psutil.Process().memory_info()
+    memory_used_mb = memory.rss / (1024 * 1024)  # Convert to MB
+
+    # Get system info
+    health_data = {
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "memory": {
+            "used_mb": round(memory_used_mb, 2),
+            "percent": psutil.Process().memory_percent(),
+        },
+        "cpu_percent": psutil.Process().cpu_percent(),
+        "runtime": {
+            "python_version": platform.python_version(),
+            "platform": platform.platform(),
+        },
+        "container": {
+            "uptime_seconds": int(psutil.Process().create_time() - psutil.boot_time()),
+        }
+    }
+    
+    return {
+        "statusCode": 200,
+        "body": json.dumps(health_data),
+        "headers": {
+            "Content-Type": "application/json"
+        }
+    }
 
 class TradingWebhookError(Exception):
     """Custom exception for webhook processing errors"""
@@ -518,8 +552,7 @@ def lambda_handler(event, context) -> Dict:
 
         # Handle different endpoints
         if path.endswith("/healthcheck"):
-            response = {"statusCode": 200, "body": json.dumps({"status": "healthy"})}
-            return response
+            return handle_healthcheck()
 
         if path.endswith("/oandastatus"):
             status = check_account_status(account_id=creds[1], access_token=creds[0])
