@@ -123,7 +123,7 @@ resource "aws_kms_alias" "sns" {
 resource "aws_sns_topic" "alerts" {
   name = "${local.name_prefix}-alerts"
 
-  kms_master_key_id = aws_kms_key.sns.id # Enable encryption using our KMS key
+  kms_master_key_id = aws_kms_key.sns.id
 
   tags = local.common_tags
 }
@@ -162,7 +162,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_memory" {
   namespace           = "AWS/Lambda"
   period              = "60"
   statistic           = "Maximum"
-  threshold           = "819" # 80% of 1024MB
+  threshold           = "819"
   alarm_description   = "Lambda function approaching memory limit"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -268,7 +268,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda2_memory" {
   namespace           = "AWS/Lambda"
   period              = "60"
   statistic           = "Maximum"
-  threshold           = "819" # 80% of 1024MB
+  threshold           = "819"
   alarm_description   = "Lambda 2 (Symbol Lookup) approaching memory limit"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -308,7 +308,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda2_concurrent_executions" {
   namespace           = "AWS/Lambda"
   period              = "60"
   statistic           = "Maximum"
-  threshold           = "50" # Adjust based on your expected load
+  threshold           = "50"
   alarm_description   = "Lambda 2 (Symbol Lookup) concurrent executions exceeding threshold"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -412,7 +412,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda3_memory" {
   namespace           = "AWS/Lambda"
   period              = "60"
   statistic           = "Maximum"
-  threshold           = "819" # 80% of 1024MB
+  threshold           = "819"
   alarm_description   = "Lambda 3 (Symbol Lookup) approaching memory limit"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
@@ -452,7 +452,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda3_concurrent_executions" {
   namespace           = "AWS/Lambda"
   period              = "60"
   statistic           = "Maximum"
-  threshold           = "50" # Adjust based on your expected load
+  threshold           = "50"
   alarm_description   = "Lambda 3 (Symbol Lookup) concurrent executions exceeding threshold"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
