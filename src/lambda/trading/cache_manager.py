@@ -13,10 +13,25 @@ class TradovateCache:
     """Manages Tradovate data caching using DynamoDB."""
 
     def __init__(self, table_name: str = "trading-prod-tradovate-cache"):
-        self.dynamodb = boto3.resource("dynamodb")
-        self.table = self.dynamodb.Table(table_name)
-        self.ACCOUNT_CACHE_KEY = "ACCOUNT_INFO"
-        self.CACHE_TTL_HOURS = 12  # Cache account info for 12 hours
+        try:
+            self.dynamodb = boto3.resource("dynamodb")
+            logger.info("Successfully initialized DynamoDB resource")
+            
+            self.table = self.dynamodb.Table(table_name)
+            # Test the table connection by checking its status
+            table_status = self.table.table_status
+            logger.info(f"Successfully connected to DynamoDB table: {table_name} (Status: {table_status})")
+            
+            self.ACCOUNT_CACHE_KEY = "ACCOUNT_INFO"
+            self.CACHE_TTL_HOURS = 12
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code')
+            error_message = e.response.get('Error', {}).get('Message')
+            logger.error(f"DynamoDB initialization error: {error_code} - {error_message}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error initializing DynamoDB connection: {str(e)}")
+            raise
 
     def get_cached_account(self, username: str) -> Optional[int]:
         """Get cached account ID for a user."""

@@ -13,13 +13,26 @@ class TokenManager:
     """Manages Tradovate authentication tokens using DynamoDB."""
 
     def __init__(self, table_name: str = "trading-prod-tradovate-tokens"):
-        self.dynamodb = boto3.resource("dynamodb")
-        self.table = self.dynamodb.Table(table_name)
-        self.TOKEN_KEY = "CURRENT_TOKEN"
-        # Time before expiration to get new token (15 minutes)
-        self.SAFE_THRESHOLD_MINUTES = 15
-        # Maximum age of token before forcing refresh (75 minutes)
-        self.MAX_TOKEN_AGE_MINUTES = 75
+        try:
+            self.dynamodb = boto3.resource("dynamodb")
+            logger.info("Successfully initialized DynamoDB resource")
+            
+            self.table = self.dynamodb.Table(table_name)
+            # Test the table connection by checking its status
+            table_status = self.table.table_status
+            logger.info(f"Successfully connected to DynamoDB table: {table_name} (Status: {table_status})")
+            
+            self.TOKEN_KEY = "CURRENT_TOKEN"
+            self.SAFE_THRESHOLD_MINUTES = 15
+            self.MAX_TOKEN_AGE_MINUTES = 75
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code')
+            error_message = e.response.get('Error', {}).get('Message')
+            logger.error(f"DynamoDB initialization error: {error_code} - {error_message}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error initializing DynamoDB connection: {str(e)}")
+            raise
 
     def _get_token_record(self) -> Optional[Dict]:
         """Get the current token record from DynamoDB."""
