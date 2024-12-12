@@ -7,6 +7,8 @@ import time
 import traceback
 from datetime import datetime, timezone
 from typing import Dict, Tuple, Any
+import gc
+import platform
 import psutil
 import boto3
 from botocore.exceptions import ClientError
@@ -37,30 +39,53 @@ lambda_client = boto3.client("lambda")
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)  # Set to DEBUG for development, INFO for production
 
-def handle_healthcheck() -> Dict:
-    import psutil
-    import platform
-    from datetime import datetime, timezone
+def handle_healthcheck():
 
-    # Get memory info
-    memory = psutil.Process().memory_info()
-    memory_used_mb = memory.rss / (1024 * 1024)  # Convert to MB
+    # Get available file descriptors (important for network connections)
+    open_fds = len(psutil.Process().open_files())
+    max_fds = os.sysconf('SC_OPEN_MAX')
 
-    # Get system info
+    # Get network stats
+    net_connections = len(psutil.Process().connections())
+    
+    # Get garbage collection stats
+    gc_stats = gc.get_stats()
+
+    # Get thread count
+    thread_count = len(psutil.Process().threads())
+
     health_data = {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "memory": {
-            "used_mb": round(memory_used_mb, 2),
+            "used_mb": round(psutil.Process().memory_info().rss / (1024 * 1024), 2),
             "percent": psutil.Process().memory_percent(),
+            "gc_collections": {
+                "gen0": gc_stats[0]['collections'],
+                "gen1": gc_stats[1]['collections'],
+                "gen2": gc_stats[2]['collections']
+            }
         },
         "cpu_percent": psutil.Process().cpu_percent(),
         "runtime": {
             "python_version": platform.python_version(),
             "platform": platform.platform(),
+            "thread_count": thread_count
         },
         "container": {
-            "uptime_seconds": int(psutil.Process().create_time() - psutil.boot_time()),
+            "uptime_seconds": int(psutil.Process().create_time() - psutil.boot_time())
+        },
+        "io": {
+            "open_file_descriptors": open_fds,
+            "max_file_descriptors": max_fds,
+            "fd_usage_percent": round((open_fds / max_fds) * 100, 2),
+            "active_network_connections": net_connections
+        },
+        "env": {
+            "aws_region": os.environ.get('AWS_REGION'),
+            "function_name": os.environ.get('AWS_LAMBDA_FUNCTION_NAME'),
+            "function_version": os.environ.get('AWS_LAMBDA_FUNCTION_VERSION'),
+            "memory_limit": int(os.environ.get('AWS_LAMBDA_FUNCTION_MEMORY_SIZE', 0))
         }
     }
     
