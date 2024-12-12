@@ -167,9 +167,9 @@ The system routes trades to different brokers based on both the instrument type 
 
 Broker Routing Rules:
 
-OANDA: All Forex pairs (e.g., EUR_USD, GBP_JPY) with exchange = OANDA
-Coinbase: All crypto pairs (e.g., BTC_USD, ETH_USD) with echange = Coinbase
-Tradovate: All Futures contracts with their respective exchanges:
+- OANDA: All Forex pairs (e.g., EUR_USD, GBP_JPY) with exchange = OANDA
+- Coinbase: All crypto pairs (e.g., BTC_USD, ETH_USD) with echange = Coinbase
+- Tradovate: All Futures contracts with their respective exchanges:
 
 - CME: ES (S&P 500), NQ (Nasdaq)
 - CME_MINI: RTY (Russell), MES (S&P 500), MNQ (Nasdaq)
