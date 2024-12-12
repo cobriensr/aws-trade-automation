@@ -752,3 +752,61 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
     ]
   })
 }
+
+resource "aws_iam_role" "cloudtrail_cloudwatch" {
+  name                  = "AWSCloudTrailLogStream"
+  path                  = "/service-role/"
+  description           = "Role for config CloudWathLogs for trail trading-prod-events"
+  force_detach_policies = false
+  max_session_duration  = 3600
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "cloudtrail_cloudwatch" {
+  name        = "Cloudtrail-CW-access-policy-trading-prod-events-817bf784-9352-4ded-9a77-cccb5d2178b9"
+  path        = "/service-role/"
+  description = "Policy for config CloudWathLogs for trail trading-prod-events, created by CloudTrail console"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AWSCloudTrailCreateLogStream2014110"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream"
+        ]
+        Resource = [
+          "arn:aws:logs:us-east-1:565625954376:log-group:aws-cloudtrail-logs-565625954376-7f92262f:log-stream:565625954376_CloudTrail_us-east-1*"
+        ]
+      },
+      {
+        Sid    = "AWSCloudTrailPutLogEvents20141101"
+        Effect = "Allow"
+        Action = [
+          "logs:PutLogEvents"
+        ]
+        Resource = [
+          "arn:aws:logs:us-east-1:565625954376:log-group:aws-cloudtrail-logs-565625954376-7f92262f:log-stream:565625954376_CloudTrail_us-east-1*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "cloudtrail_cloudwatch" {
+  role       = aws_iam_role.cloudtrail_cloudwatch.name
+  policy_arn = aws_iam_policy.cloudtrail_cloudwatch.arn
+}
