@@ -1,12 +1,10 @@
-# terraform-state.tf
-
 provider "aws" {
   region = "us-east-2"
 }
 
 # S3 bucket for Terraform state
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "trading-terraform-state-jerseyse410"
+  bucket = var.terraform_state_bucket
 }
 
 # Enable versioning for rollback capability
@@ -40,7 +38,7 @@ resource "aws_s3_bucket_public_access_block" "terraform_state" {
 
 # S3 bucket for storing access logs of the Terraform state bucket
 resource "aws_s3_bucket" "terraform_state_access_logs" {
-  bucket = "trading-terraform-state-access-logs"
+  bucket = var.terraform_state_logs_bucket
 }
 
 # Enable versioning for the access logs bucket
@@ -76,6 +74,6 @@ resource "aws_s3_bucket_public_access_block" "terraform_state_access_logs" {
 resource "aws_s3_bucket_logging" "terraform_state" {
   bucket = aws_s3_bucket.terraform_state.id
 
-  target_bucket = "trading-terraform-state-access-logs"
+  target_bucket = var.terraform_state_logs_bucket
   target_prefix = "terraform-state-logs/"
 }
