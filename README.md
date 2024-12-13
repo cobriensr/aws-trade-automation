@@ -42,6 +42,12 @@ This multi-timeframe approach combines:
 
 ## System Architecture
 
+### System Overview Diagram
+
+![AWS Trading System Architecture](./public/AWS-Automation-Architectural-Diagram.png)
+
+The above diagram illustrates the complete flow of the trading system, from TradingView signals to trade execution across multiple brokers.
+
 ### AWS Infrastructure
 
 1. API Gateway & Webhooks
