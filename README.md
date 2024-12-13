@@ -26,7 +26,6 @@ This multi-timeframe approach combines:
 
 - Quick execution (1-minute)
 - Trend direction (10-minute)
-- Momentum confirmation (15-minute)
 
 ### Strategy Logic
 
