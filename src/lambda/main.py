@@ -651,7 +651,7 @@ def lambda_handler(event, context) -> Dict:
                 response = {"statusCode": 200, "body": json.dumps(result)}
                 return response
 
-            if exchange in ["NYMEX", "COMEX", "CBOT", "CME", "CME_MINI", "ICE"]:
+            if exchange in ["NYMEX", "COMEX", "CBOT", "CME", "CME_MINI", "ICEUS"]:
                 result = handle_futures_trade(
                     creds[2],
                     creds[3],
