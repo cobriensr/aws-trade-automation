@@ -5,7 +5,6 @@ resource "aws_lambda_function" "main" {
   function_name                  = "${local.name_prefix}-function"
   role                           = aws_iam_role.lambda_role.arn
   handler                        = "main.lambda_handler"
-  reserved_concurrent_executions = 100
   runtime                        = "python3.12"
   timeout                        = 30
   memory_size                    = 3008
@@ -57,7 +56,6 @@ resource "aws_lambda_function" "symbol_lookup" {
   timeout       = 30
   memory_size   = 3008
   publish       = true
-  reserved_concurrent_executions = 50
   package_type = "Image"
   image_uri    = "${aws_ecr_repository.lambda2.repository_url}:latest"
 
@@ -96,7 +94,6 @@ resource "aws_lambda_function" "coinbase" {
   function_name                  = "${local.name_prefix}-coinbase"
   role                           = aws_iam_role.lambda2_role.arn
   handler                        = "main.lambda_handler"
-  reserved_concurrent_executions = 45
   runtime                        = "python3.12"
   timeout                        = 30
   memory_size                    = 3008
