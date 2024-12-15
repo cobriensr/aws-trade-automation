@@ -548,7 +548,7 @@ resource "aws_iam_role_policy" "vpc_flow_logs" {
         ]
         Resource = [
           "${aws_cloudwatch_log_group.vpc_flow_logs.arn}",
-          "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:log-stream:*"
+          "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:log-stream:${data.aws_caller_identity.current.account_id}_vpcflowlogs_${var.aws_region}_${aws_vpc.main.id}"
         ]
       }
     ]
