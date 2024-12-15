@@ -64,6 +64,6 @@ RUN pip install --target . --no-cache-dir -r requirements.txt && \
 
 # Create deployment package
 RUN mkdir -p /tmp/lambda && \
-    zip -r /tmp/lambda/lambda_function.zip .
+    zip -r /tmp/lambda/lambda3_function.zip .
 
 CMD ["main.lambda_handler"]
