@@ -1,6 +1,6 @@
 resource "aws_cloudtrail" "main" {
   name                          = "trading-prod-events"
-  enable_log_file_validation    = false
+  enable_log_file_validation    = true
   enable_logging                = true
   include_global_service_events = true
   is_multi_region_trail         = true
