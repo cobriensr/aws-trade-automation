@@ -63,6 +63,6 @@ RUN pip install --target . --no-cache-dir -r requirements.txt && \
     find . -name "*.pkl" -not -path "*/boto*/*" -delete
 
 # Create deployment package
-RUN zip -r /lambda3_function.zip .
+RUN zip -r /tmp/lambda/lambda_function.zip .
 
 CMD ["main.lambda_handler"]
