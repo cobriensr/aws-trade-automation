@@ -91,7 +91,7 @@ jobs:
         cd src/lambda3
         docker buildx build --platform linux/amd64 --load -t lambda3-build .
         docker create --name lambda3-container lambda3-build
-        docker cp lambda3-container:/tmp/lambda/lambda_function.zip ../../terraform/
+        docker cp lambda3-container:/tmp/lambda/lambda3_function.zip ../../terraform/
         docker rm lambda3-container
         aws s3 cp ../../terraform/lambda3_function.zip s3://trading-lambda-deployment/lambda3_function.zip \
           --sse aws:kms \
