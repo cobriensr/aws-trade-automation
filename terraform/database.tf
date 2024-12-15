@@ -76,7 +76,7 @@ resource "aws_rds_cluster" "trading_db" {
   storage_encrypted = true
   kms_key_id        = aws_kms_key.rds.arn
 
-  deletion_protection             = false
+  deletion_protection             = true
   backup_retention_period         = 2
   preferred_backup_window         = "05:24-05:54"
   preferred_maintenance_window    = "sun:04:25-sun:04:55"
