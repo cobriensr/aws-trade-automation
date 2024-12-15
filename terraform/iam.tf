@@ -1118,3 +1118,114 @@ resource "aws_ecr_repository_policy" "lambda2_ecr_policy" {
     ]
   })
 }
+
+# KMS key for Lambda environment variables encryption
+resource "aws_kms_key" "lambda_env" {
+  description             = "KMS key for Lambda environment variables encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow Lambda Service"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_kms_alias" "lambda_env" {
+  name          = "alias/lambda-environment"
+  target_key_id = aws_kms_key.lambda_env.key_id
+}
+
+# Add KMS permissions for Lambda environment variables
+resource "aws_iam_role_policy" "lambda_env_kms" {
+  name = "${local.name_prefix}-lambda-env-kms"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:Encrypt",
+          "kms:GenerateDataKey",
+          "kms:ReEncrypt*"
+        ]
+        Resource = aws_kms_key.lambda_env.arn
+      }
+    ]
+  })
+}
+
+# Add KMS permissions for Lambda2 environment variables
+resource "aws_iam_role_policy" "lambda2_env_kms" {
+  name = "${local.name_prefix}-lambda2-env-kms"
+  role = aws_iam_role.lambda2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:Encrypt",
+          "kms:GenerateDataKey",
+          "kms:ReEncrypt*"
+        ]
+        Resource = aws_kms_key.lambda_env.arn
+      }
+    ]
+  })
+}
+
+# Add KMS permissions for Lambda3 environment variables
+resource "aws_iam_role_policy" "lambda3_env_kms" {
+  name = "${local.name_prefix}-lambda3-env-kms"
+  role = aws_iam_role.lambda3_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:Encrypt",
+          "kms:GenerateDataKey",
+          "kms:ReEncrypt*"
+        ]
+        Resource = aws_kms_key.lambda_env.arn
+      }
+    ]
+  })
+}

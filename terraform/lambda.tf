@@ -4,6 +4,7 @@ resource "aws_lambda_function" "main" {
   s3_key        = "lambda_function.zip"
   function_name = "${local.name_prefix}-function"
   role          = aws_iam_role.lambda_role.arn
+  kms_key_arn   = aws_kms_key.lambda_env.arn
   handler       = "main.lambda_handler"
   runtime       = "python3.12"
   timeout       = 30
@@ -52,6 +53,7 @@ resource "aws_lambda_alias" "main" {
 # Lambda 2 (Symbol lookup)
 resource "aws_lambda_function" "symbol_lookup" {
   function_name = "${local.name_prefix}-symbol-lookup"
+  kms_key_arn   = aws_kms_key.lambda_env.arn
   role          = aws_iam_role.lambda2_role.arn
   timeout       = 30
   memory_size   = 3008
@@ -93,6 +95,7 @@ resource "aws_lambda_function" "coinbase" {
   s3_key        = "lambda3_function.zip"
   function_name = "${local.name_prefix}-coinbase"
   role          = aws_iam_role.lambda2_role.arn
+  kms_key_arn   = aws_kms_key.lambda_env.arn
   handler       = "main.lambda_handler"
   runtime       = "python3.12"
   timeout       = 30
