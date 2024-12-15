@@ -33,7 +33,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = each.key == "a" ? "10.0.0.0/24" : "10.0.3.0/24"
   availability_zone       = each.value
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 
   tags = merge(local.common_tags, {
     Name = "trading-${var.environment}-public-subnet-${each.key}"
