@@ -110,6 +110,12 @@ jobs:
         with:
           sarif_file: trivy-terraform-scan.sarif
     
+      - name: Install Terrascan
+        run: |
+          curl -L "$(curl -s https://api.github.com/repos/tenable/terrascan/releases/latest | grep -o -E "https://.+?_Linux_x86_64.tar.gz")" > terrascan.tar.gz
+          tar -xf terrascan.tar.gz terrascan
+          sudo mv terrascan /usr/local/bin/terrascan
+    
       - name: Run Terrascan
         run: |
           mkdir -p terrascan_output
