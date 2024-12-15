@@ -1,14 +1,14 @@
 # lambda.tf
 resource "aws_lambda_function" "main" {
-  s3_bucket                      = aws_s3_bucket.lambda_deployment.id
-  s3_key                         = "lambda_function.zip"
-  function_name                  = "${local.name_prefix}-function"
-  role                           = aws_iam_role.lambda_role.arn
-  handler                        = "main.lambda_handler"
-  runtime                        = "python3.12"
-  timeout                        = 30
-  memory_size                    = 3008
-  publish                        = true
+  s3_bucket     = aws_s3_bucket.lambda_deployment.id
+  s3_key        = "lambda_function.zip"
+  function_name = "${local.name_prefix}-function"
+  role          = aws_iam_role.lambda_role.arn
+  handler       = "main.lambda_handler"
+  runtime       = "python3.12"
+  timeout       = 30
+  memory_size   = 3008
+  publish       = true
   layers = [
     "arn:aws:lambda:us-east-1:580247275435:layer:LambdaInsightsExtension:53"
   ]
@@ -56,8 +56,8 @@ resource "aws_lambda_function" "symbol_lookup" {
   timeout       = 30
   memory_size   = 3008
   publish       = true
-  package_type = "Image"
-  image_uri    = "${aws_ecr_repository.lambda2.repository_url}:latest"
+  package_type  = "Image"
+  image_uri     = "${aws_ecr_repository.lambda2.repository_url}:latest"
 
   environment {
     variables = {
@@ -89,15 +89,15 @@ resource "aws_lambda_alias" "symbol_lookup" {
 
 # Lambda 3 (Coinbase)
 resource "aws_lambda_function" "coinbase" {
-  s3_bucket                      = aws_s3_bucket.lambda_deployment.id
-  s3_key                         = "lambda3_function.zip"
-  function_name                  = "${local.name_prefix}-coinbase"
-  role                           = aws_iam_role.lambda2_role.arn
-  handler                        = "main.lambda_handler"
-  runtime                        = "python3.12"
-  timeout                        = 30
-  memory_size                    = 3008
-  publish                        = true
+  s3_bucket     = aws_s3_bucket.lambda_deployment.id
+  s3_key        = "lambda3_function.zip"
+  function_name = "${local.name_prefix}-coinbase"
+  role          = aws_iam_role.lambda2_role.arn
+  handler       = "main.lambda_handler"
+  runtime       = "python3.12"
+  timeout       = 30
+  memory_size   = 3008
+  publish       = true
   layers = [
     "arn:aws:lambda:us-east-1:580247275435:layer:LambdaInsightsExtension:53",
   ]

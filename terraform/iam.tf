@@ -716,7 +716,9 @@ resource "aws_iam_user_policy" "admin_kms" {
         ]
         Resource = [
           aws_kms_key.s3.arn,
-          aws_kms_key.rds.arn
+          aws_kms_key.rds.arn,
+          aws_kms_key.ecr.arn,
+          aws_kms_key.cloudwatch_logs.arn
         ]
       }
     ]
@@ -809,4 +811,229 @@ resource "aws_iam_policy" "cloudtrail_cloudwatch" {
 resource "aws_iam_role_policy_attachment" "cloudtrail_cloudwatch" {
   role       = aws_iam_role.cloudtrail_cloudwatch.name
   policy_arn = aws_iam_policy.cloudtrail_cloudwatch.arn
+}
+
+# Add KMS permissions for CloudWatch Logs to Lambda roles
+resource "aws_iam_role_policy" "lambda_cloudwatch_kms" {
+  name = "${local.name_prefix}-lambda-cloudwatch-kms"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.cloudwatch_logs.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "lambda2_cloudwatch_kms" {
+  name = "${local.name_prefix}-lambda2-cloudwatch-kms"
+  role = aws_iam_role.lambda2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.cloudwatch_logs.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "lambda3_cloudwatch_kms" {
+  name = "${local.name_prefix}-lambda3-cloudwatch-kms"
+  role = aws_iam_role.lambda3_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.cloudwatch_logs.arn
+      }
+    ]
+  })
+}
+
+# Add KMS permissions for API Gateway roles
+resource "aws_iam_role_policy" "api_gateway_cloudwatch_kms" {
+  name = "${local.name_prefix}-api-gateway-cloudwatch-kms"
+  role = aws_iam_role.api_gateway_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.cloudwatch_logs.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "coinbase_api_gateway_cloudwatch_kms" {
+  name = "${local.name_prefix}-coinbase-api-gateway-cloudwatch-kms"
+  role = aws_iam_role.coinbase_api_gateway_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.cloudwatch_logs.arn
+      }
+    ]
+  })
+}
+
+# Add KMS permissions for VPC Flow Logs role
+resource "aws_iam_role_policy" "vpc_flow_logs_kms" {
+  name = "${local.name_prefix}-vpc-flow-logs-kms"
+  role = aws_iam_role.vpc_flow_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.cloudwatch_logs.arn
+      }
+    ]
+  })
+}
+
+# Add KMS permissions for CloudTrail role
+resource "aws_iam_role_policy" "cloudtrail_cloudwatch_kms" {
+  name = "${local.name_prefix}-cloudtrail-cloudwatch-kms"
+  role = aws_iam_role.cloudtrail_cloudwatch.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.cloudwatch_logs.arn
+      }
+    ]
+  })
+}
+
+# KMS key for CloudWatch Log Group encryption
+resource "aws_kms_key" "cloudwatch_logs" {
+  description             = "KMS key for CloudWatch Logs encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowCloudWatchLogs"
+        Effect = "Allow"
+        Principal = {
+          Service = "logs.${data.aws_region.current.name}.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt*",
+          "kms:Decrypt*",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:Describe*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_kms_alias" "cloudwatch_logs" {
+  name          = "alias/cloudwatch-logs"
+  target_key_id = aws_kms_key.cloudwatch_logs.key_id
+}
+
+# KMS key for ECR repository encryption
+resource "aws_kms_key" "ecr" {
+  description             = "KMS key for ECR repository encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowECRService"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecr.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_kms_alias" "ecr" {
+  name          = "alias/ecr-encryption"
+  target_key_id = aws_kms_key.ecr.key_id
 }

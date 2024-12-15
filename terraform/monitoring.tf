@@ -189,12 +189,16 @@ resource "aws_cloudwatch_metric_alarm" "consecutive_failures" {
 resource "aws_cloudwatch_log_group" "lambda_logs" {
   name              = "/aws/lambda/${aws_lambda_function.main.function_name}"
   retention_in_days = 7
+  kms_key_id        = aws_kms_key.cloudwatch_logs.arn
+
+  tags = local.common_tags
 }
 
 # Lambda 2 CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "lambda2_logs" {
   name              = "/aws/lambda/${aws_lambda_function.symbol_lookup.function_name}"
   retention_in_days = 7
+  kms_key_id        = aws_kms_key.cloudwatch_logs.arn
 
   tags = local.common_tags
 }
@@ -339,6 +343,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda2_invocation_failures" {
 resource "aws_cloudwatch_log_group" "lambda3_logs" {
   name              = "/aws/lambda/${aws_lambda_function.coinbase.function_name}"
   retention_in_days = 7
+  kms_key_id        = aws_kms_key.cloudwatch_logs.arn
 
   tags = local.common_tags
 }
