@@ -18,7 +18,7 @@ COPY --chown=1001:1001 requirements.txt .
 # Install Python packages as non-root user
 RUN pip3.12 install --no-cache-dir -r requirements.txt -t python/
 
-FROM public.ecr.aws/lambda/python:3.12.2024.11.19.19
+FROM public.ecr.aws/docker/library/python:3.12.8
 
 # Switch to root for system installations and setup
 USER root

@@ -1,4 +1,4 @@
-FROM public.ecr.aws/lambda/python:3.12.2024.11.19.19
+FROM public.ecr.aws/docker/library/python:3.12.8
 
 # Switch to root for system installations
 USER root
