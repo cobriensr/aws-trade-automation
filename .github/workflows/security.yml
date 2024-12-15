@@ -83,15 +83,15 @@ jobs:
         run: curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sudo sh -s -- -b /usr/local/bin
         
       - name: Scan Lambda1 Docker image with Anchore Grype
-        run: grype lambda1-image --output lambda1-grype-results.sarif
+        run: grype lambda1-image --output sarif > lambda1-grype-results.sarif
         continue-on-error: true
         
       - name: Scan Lambda2 Docker image with Anchore Grype
-        run: grype lambda2-image --output lambda2-grype-results.sarif
+        run: grype lambda2-image --output sarif > lambda2-grype-results.sarif
         continue-on-error: true
         
       - name: Scan Lambda3 Docker image with Anchore Grype
-        run: grype lambda3-image --output lambda3-grype-results.sarif
+        run: grype lambda3-image --output sarif > lambda3-grype-results.sarif
         continue-on-error: true
 
       - name: Scan Python dependencies
