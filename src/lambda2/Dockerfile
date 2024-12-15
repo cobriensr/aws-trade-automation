@@ -20,6 +20,9 @@ RUN pip3.12 install --no-cache-dir -r requirements.txt -t python/
 
 FROM public.ecr.aws/docker/library/python:3.12.8-alpine3.21
 
+# Install required tools
+RUN apk add --no-cache rpm
+
 # Switch to root for system installations and setup
 USER root
 WORKDIR /var/task
