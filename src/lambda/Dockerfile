@@ -5,8 +5,7 @@ USER root
 WORKDIR /function
 
 # Install required tools
-RUN apk install -y zip findutils && \
-    apk clean all && \
+RUN apk add --no-cache zip findutils && \
     chown 1000:1000 /function
 
 # Switch to lambda user for all subsequent operations
