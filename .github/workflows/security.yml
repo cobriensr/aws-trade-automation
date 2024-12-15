@@ -78,6 +78,21 @@ jobs:
           format: 'sarif'
           output: 'trivy-docker-lambda3.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
+  
+      - name: Install Anchore Grype
+        run: curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sudo sh -s -- -b /usr/local/bin
+        
+      - name: Scan Lambda1 Docker image with Anchore Grype
+        run: grype lambda1-image --output lambda1-grype-results.sarif
+        continue-on-error: true
+        
+      - name: Scan Lambda2 Docker image with Anchore Grype
+        run: grype lambda2-image --output lambda2-grype-results.sarif
+        continue-on-error: true
+        
+      - name: Scan Lambda3 Docker image with Anchore Grype
+        run: grype lambda3-image --output lambda3-grype-results.sarif
+        continue-on-error: true
 
       - name: Scan Python dependencies
         run: |
@@ -94,6 +109,16 @@ jobs:
         continue-on-error: true
         with:
           sarif_file: trivy-terraform-scan.sarif
+    
+      - name: Run Terrascan
+        uses: tenable/terrascan-action@v1
+        with:
+          iac_type: terraform
+          iac_version: v14
+          policy_type: aws
+          only_warn: true
+          sarif_upload: true
+        continue-on-error: true
 
       # Debug step to list available SARIF files
       - name: List SARIF files
@@ -143,6 +168,27 @@ jobs:
         with:
           sarif_file: trivy-terraform-scan.sarif
           category: trivy-terraform
+  
+      - name: Upload Lambda1 Grype scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('lambda1-grype-results.sarif') != ''
+        with:
+          sarif_file: lambda1-grype-results.sarif
+          category: grype-lambda1
+
+      - name: Upload Lambda2 Grype scan results  
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('lambda2-grype-results.sarif') != ''
+        with:
+          sarif_file: lambda2-grype-results.sarif
+          category: grype-lambda2
+          
+      - name: Upload Lambda3 Grype scan results
+        uses: github/codeql-action/upload-sarif@v3 
+        if: always() && hashFiles('lambda3-grype-results.sarif') != ''
+        with:
+          sarif_file: lambda3-grype-results.sarif
+          category: grype-lambda3
 
       - name: Create summary report
         if: github.event_name == 'pull_request'
