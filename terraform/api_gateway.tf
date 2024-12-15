@@ -13,7 +13,17 @@ resource "aws_apigatewayv2_api" "main" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins  = ["*"]
+    allow_origins = [
+      # TradingView domains
+      "https://www.tradingview.com",
+      "https://tradingview.com",
+      "https://pine.tradingview.com",
+
+      # AWS Specific Domains
+      "https://ghogv0gi4k.execute-api.us-east-1.amazonaws.com/webhook",
+      "https://m18akjpfh9.execute-api.us-east-1.amazonaws.com/webhook",
+      "https://s3.amazonaws.com",
+    ]
     allow_methods  = ["POST", "GET", "OPTIONS"]
     allow_headers  = ["Content-Type", "Authorization", "X-Amz-Date", "X-Api-Key", "X-Amz-Security-Token"]
     expose_headers = ["Content-Type"]
@@ -98,7 +108,17 @@ resource "aws_apigatewayv2_api" "coinbase" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins  = ["*"]
+    allow_origins = [
+      # TradingView domains
+      "https://www.tradingview.com",
+      "https://tradingview.com",
+      "https://pine.tradingview.com",
+
+      # AWS Specific Domains
+      "https://ghogv0gi4k.execute-api.us-east-1.amazonaws.com/webhook",
+      "https://m18akjpfh9.execute-api.us-east-1.amazonaws.com/webhook",
+      "https://s3.amazonaws.com",
+    ]
     allow_methods  = ["POST", "GET", "OPTIONS"]
     allow_headers  = ["Content-Type", "Authorization", "X-Amz-Date", "X-Api-Key", "X-Amz-Security-Token"]
     expose_headers = ["Content-Type"]
