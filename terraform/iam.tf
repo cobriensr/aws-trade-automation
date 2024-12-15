@@ -718,7 +718,8 @@ resource "aws_iam_user_policy" "admin_kms" {
           aws_kms_key.s3.arn,
           aws_kms_key.rds.arn,
           aws_kms_key.ecr.arn,
-          aws_kms_key.cloudwatch_logs.arn
+          aws_kms_key.cloudwatch_logs.arn,
+          aws_kms_key.cloudtrail.arn
         ]
       }
     ]
@@ -1036,4 +1037,60 @@ resource "aws_kms_key" "ecr" {
 resource "aws_kms_alias" "ecr" {
   name          = "alias/ecr-encryption"
   target_key_id = aws_kms_key.ecr.key_id
+}
+
+# KMS key for CloudTrail encryption
+resource "aws_kms_key" "cloudtrail" {
+  description             = "KMS key for CloudTrail encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow CloudTrail to encrypt logs"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+        Action = [
+          "kms:GenerateDataKey*",
+          "kms:Decrypt"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow CloudWatch Logs"
+        Effect = "Allow"
+        Principal = {
+          Service = "logs.${data.aws_region.current.name}.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt*",
+          "kms:Decrypt*",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:Describe*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_kms_alias" "cloudtrail" {
+  name          = "alias/cloudtrail"
+  target_key_id = aws_kms_key.cloudtrail.key_id
 }

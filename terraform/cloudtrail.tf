@@ -7,6 +7,7 @@ resource "aws_cloudtrail" "main" {
   s3_bucket_name                = "aws-cloudtrail-logs-565625954376-0dc47724"
   cloud_watch_logs_group_arn    = "arn:aws:logs:us-east-1:565625954376:log-group:aws-cloudtrail-logs-565625954376-7f92262f:*"
   cloud_watch_logs_role_arn     = "arn:aws:iam::565625954376:role/service-role/AWSCloudTrailLogStream"
+  kms_key_id                    = aws_kms_key.cloudtrail.arn
 
   event_selector {
     include_management_events = true
@@ -35,6 +36,7 @@ resource "aws_cloudtrail" "main" {
 resource "aws_cloudwatch_log_group" "cloudtrail" {
   name              = "aws-cloudtrail-logs-565625954376-7f92262f"
   log_group_class   = "STANDARD"
-  retention_in_days = 0
+  retention_in_days = 7
   skip_destroy      = false
+  kms_key_id        = aws_kms_key.cloudtrail.arn
 }
