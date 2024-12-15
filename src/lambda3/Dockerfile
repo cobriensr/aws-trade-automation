@@ -9,7 +9,6 @@ RUN microdnf install -y zip findutils shadow-utils && \
     groupadd -g 1000 lambda && \
     useradd -u 1000 -g lambda lambda && \
     chown lambda:lambda /function && \
-    microdnf remove -y shadow-utils && \
     microdnf clean all
 
 # Switch to lambda user for all subsequent operations
