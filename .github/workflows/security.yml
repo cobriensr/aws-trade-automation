@@ -110,22 +110,21 @@ jobs:
         with:
           sarif_file: trivy-terraform-scan.sarif
     
-      - name: Install Terrascan
-        run: |
-          curl -L "$(curl -s https://api.github.com/repos/tenable/terrascan/releases/latest | grep -o -E "https://.+?_Linux_x86_64.tar.gz")" > terrascan.tar.gz
-          tar -xf terrascan.tar.gz terrascan
-          sudo mv terrascan /usr/local/bin/terrascan
-    
       - name: Run Terrascan
-        run: |
-          mkdir -p terrascan_output
-          terrascan scan -i terraform -t aws -d terraform -o terrascan_output/terrascan.sarif --sarif
-        continue-on-error: true
-      
+        uses: tenable/terrascan-action@main
+        with:
+          iac_type: 'terraform'
+          iac_version: 'v14'
+          policy_type: 'aws'
+          verbose: true
+          only_warn: true
+          sarif_upload: true
+          iac_dir: 'terraform'
+
       - name: Upload Terrascan SARIF results
         uses: github/codeql-action/upload-sarif@v2
         with:
-          sarif_file: terrascan_output/terrascan.sarif
+          sarif_file: terrascan.sarif
           wait-for-processing: true
 
       # Debug step to list available SARIF files
