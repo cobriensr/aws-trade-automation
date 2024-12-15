@@ -1,27 +1,42 @@
 FROM amazonlinux:2023 AS builder
 
-# Install build tools and Python
+# Install build tools and Python as root
+USER root
 RUN dnf install -y gcc gcc-c++ make python3.12 python3.12-pip python3.12-devel && \
-dnf clean all
+    dnf clean all
 
-# Create and set working directory
+# Create non-root user for building
+RUN useradd -m -u 1001 builder
+RUN mkdir /build && chown builder:builder /build
+
+# Switch to non-root user for building
+USER builder
 WORKDIR /build
 
-# Copy requirements file
-COPY requirements.txt .
+# Copy requirements file with correct ownership
+COPY --chown=builder:builder requirements.txt .
 
-# Install Python packages
+# Install Python packages as non-root user
 RUN pip3.12 install --no-cache-dir -r requirements.txt -t python/
 
 FROM public.ecr.aws/lambda/python:3.12
 
-# Install Lambda Insights agent
-RUN curl -O https://lambda-insights-extension.s3-ap-northeast-1.amazonaws.com/amazon_linux/lambda-insights-extension.rpm && \
-    rpm -U lambda-insights-extension.rpm && \
-    rm -f lambda-insights-extension.rpm
+# Switch to root for system installations
+USER root
 
-# Copy built packages from builder stage
-COPY --from=builder /build/python /var/task
-COPY main.py /var/task/
+# Install Lambda Insights agent
+ADD https://lambda-insights-extension.s3-ap-northeast-1.amazonaws.com/amazon_linux/lambda-insights-extension.rpm /tmp/
+RUN rpm -U /tmp/lambda-insights-extension.rpm && \
+    rm -f /tmp/lambda-insights-extension.rpm
+
+# Create directory and set ownership
+RUN mkdir -p /var/task && chown lambda:lambda /var/task
+
+# Switch to lambda user
+USER lambda
+
+# Copy built packages and main.py with correct ownership
+COPY --chown=lambda:lambda --from=builder /build/python /var/task
+COPY --chown=lambda:lambda main.py /var/task/
 
 CMD [ "main.lambda_handler" ]
