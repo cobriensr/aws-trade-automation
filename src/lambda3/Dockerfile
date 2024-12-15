@@ -7,9 +7,11 @@ USER root
 RUN microdnf install -y zip findutils && \
     microdnf clean all
 
-# Create function directory and set permissions
+# Create function directory and create lambda user
 WORKDIR /function
-RUN chown lambda:lambda /function
+RUN groupadd -g 1000 lambda && \
+    useradd -u 1000 -g lambda lambda && \
+    chown lambda:lambda /function
 
 # Switch to lambda user for all subsequent operations
 USER lambda

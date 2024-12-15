@@ -29,8 +29,11 @@ ADD https://lambda-insights-extension.s3-ap-northeast-1.amazonaws.com/amazon_lin
 RUN rpm -U /tmp/lambda-insights-extension.rpm && \
     rm -f /tmp/lambda-insights-extension.rpm
 
-# Create directory and set ownership
-RUN mkdir -p /var/task && chown lambda:lambda /var/task
+# Create lambda user and set up directory
+RUN groupadd -g 1000 lambda && \
+    useradd -u 1000 -g lambda lambda && \
+    mkdir -p /var/task && \
+    chown lambda:lambda /var/task
 
 # Switch to lambda user
 USER lambda
