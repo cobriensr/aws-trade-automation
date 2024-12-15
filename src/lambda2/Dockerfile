@@ -2,7 +2,7 @@ FROM amazonlinux:2023 AS builder
 
 # Install build tools and Python as root
 USER root
-RUN dnf install -y gcc gcc-c++ make python3.12 python3.12-pip python3.12-devel && \
+RUN dnf install -y gcc gcc-c++ make python3.12 python3.12-pip python3.12-devel shadow-utils && \
     dnf clean all
 
 # Create non-root user for building
