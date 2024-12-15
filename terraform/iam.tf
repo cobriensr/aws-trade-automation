@@ -58,14 +58,40 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Action = [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "ec2:CreateNetworkInterface",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface",
-          "secretsmanager:GetSecretValue",
-          "lambda:InvokeFunction"
+          "logs:PutLogEvents"
         ]
-        Resource = "*"
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${aws_lambda_function.main.function_name}",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${aws_lambda_function.main.function_name}:log-stream:*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateNetworkInterface"
+        ]
+        Resource = [
+          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*"
+        ]
+        Condition = {
+          StringEquals = {
+            "ec2:Subnet": [
+              aws_subnet.private["a"].id,
+              aws_subnet.private["b"].id
+            ],
+            "ec2:vpc": aws_vpc.main.id
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DeleteNetworkInterface"
+        ]
+        Resource = [
+          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*"
+        ]
       }
     ]
   })
@@ -118,7 +144,7 @@ resource "aws_iam_role" "api_gateway_role" {
   tags = local.common_tags
 }
 
-# Allow API Gateway to invoke the Lambda function and write logs
+# API Gateway policy
 resource "aws_iam_role_policy" "api_gateway_policy" {
   name = "${local.name_prefix}-api-gateway-policy"
   role = aws_iam_role.api_gateway_role.id
@@ -127,31 +153,22 @@ resource "aws_iam_role_policy" "api_gateway_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = "lambda:InvokeFunction"
-        Resource = aws_lambda_function.main.arn
-      },
-      {
-        Effect   = "Allow"
-        Action   = "lambda:InvokeFunction"
-        Resource = aws_lambda_function.coinbase.arn
+        Effect = "Allow"
+        Action = "lambda:InvokeFunction"
+        Resource = [
+          aws_lambda_function.main.arn,
+          aws_lambda_function.coinbase.arn
+        ]
       },
       {
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams",
-          "logs:PutLogEvents",
-          "logs:GetLogEvents",
-          "logs:FilterLogEvents"
+          "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/apigateway/*",
-          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/apigateway/*:log-stream:*",
           "${aws_cloudwatch_log_group.api_logs.arn}",
-          "${aws_cloudwatch_log_group.api_logs.arn}:*"
+          "${aws_cloudwatch_log_group.api_logs.arn}:log-stream:*"
         ]
       }
     ]
@@ -178,7 +195,7 @@ resource "aws_iam_role" "lambda2_role" {
   tags = local.common_tags
 }
 
-# Lambda 2 policy
+# Lambda 2 (Symbol Lookup) policy
 resource "aws_iam_role_policy" "lambda2_policy" {
   name = "${local.name_prefix}-lambda2-policy"
   role = aws_iam_role.lambda2_role.id
@@ -191,13 +208,40 @@ resource "aws_iam_role_policy" "lambda2_policy" {
         Action = [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "ec2:CreateNetworkInterface",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface",
-          "lambda:InvokeFunction"
+          "logs:PutLogEvents"
         ]
-        Resource = "*"
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${aws_lambda_function.symbol_lookup.function_name}",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${aws_lambda_function.symbol_lookup.function_name}:log-stream:*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateNetworkInterface"
+        ]
+        Resource = [
+          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*"
+        ]
+        Condition = {
+          StringEquals = {
+            "ec2:Subnet": [
+              aws_subnet.private["a"].id,
+              aws_subnet.private["b"].id
+            ],
+            "ec2:vpc": aws_vpc.main.id
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DeleteNetworkInterface"
+        ]
+        Resource = [
+          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*"
+        ]
       }
     ]
   })
@@ -288,7 +332,7 @@ resource "aws_iam_role" "lambda3_role" {
   tags = local.common_tags
 }
 
-# Lambda 3 policy
+# Lambda 3 (Coinbase) policy
 resource "aws_iam_role_policy" "lambda3_policy" {
   name = "${local.name_prefix}-lambda3-policy"
   role = aws_iam_role.lambda3_role.id
@@ -301,12 +345,40 @@ resource "aws_iam_role_policy" "lambda3_policy" {
         Action = [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "ec2:CreateNetworkInterface",
+          "logs:PutLogEvents"
+        ]
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${aws_lambda_function.coinbase.function_name}",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${aws_lambda_function.coinbase.function_name}:log-stream:*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateNetworkInterface"
+        ]
+        Resource = [
+          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*"
+        ]
+        Condition = {
+          StringEquals = {
+            "ec2:Subnet": [
+              aws_subnet.private["a"].id,
+              aws_subnet.private["b"].id
+            ],
+            "ec2:vpc": aws_vpc.main.id
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "ec2:DescribeNetworkInterfaces",
           "ec2:DeleteNetworkInterface"
         ]
-        Resource = "*"
+        Resource = [
+          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*"
+        ]
       }
     ]
   })
@@ -341,7 +413,7 @@ resource "aws_iam_role_policy" "lambda3_parameter_store" {
   })
 }
 
-# Add CloudWatch metrics permission to lambda policy
+# Lambda CloudWatch metrics policy
 resource "aws_iam_role_policy" "lambda_cloudwatch" {
   name = "cloudwatch_metrics_access"
   role = aws_iam_role.lambda_role.id
@@ -351,10 +423,13 @@ resource "aws_iam_role_policy" "lambda_cloudwatch" {
     Statement = [
       {
         Effect = "Allow"
-        Action = [
-          "cloudwatch:PutMetricData"
+        Action = ["cloudwatch:PutMetricData"]
+        Resource = [
+          "arn:aws:cloudwatch:${var.aws_region}:${data.aws_caller_identity.current.account_id}:metrics/Trading/Custom/*",
+          "arn:aws:cloudwatch:${var.aws_region}:${data.aws_caller_identity.current.account_id}:metrics/Trading/Webhook/*",
+          "arn:aws:cloudwatch:${var.aws_region}:${data.aws_caller_identity.current.account_id}:metrics/Trading/Webhook/Resources/*",
+          "arn:aws:cloudwatch:${var.aws_region}:${data.aws_caller_identity.current.account_id}:metrics/Trading/Webhook/Execution/*"
         ]
-        Resource = "*"
       }
     ]
   })
@@ -413,7 +488,7 @@ resource "aws_iam_role_policy" "coinbase_api_gateway_policy" {
   })
 }
 
-# Add ECR permissions to Lambda 2 role
+# Lambda 2 ECR access policy
 resource "aws_iam_role_policy" "lambda2_ecr" {
   name = "${local.name_prefix}-lambda2-ecr"
   role = aws_iam_role.lambda2_role.id
@@ -428,7 +503,7 @@ resource "aws_iam_role_policy" "lambda2_ecr" {
           "ecr:BatchGetImage",
           "ecr:BatchCheckLayerAvailability"
         ]
-        Resource = aws_ecr_repository.lambda2.arn
+        Resource = [aws_ecr_repository.lambda2.arn]
       }
     ]
   })
@@ -457,7 +532,7 @@ resource "aws_iam_role" "vpc_flow_logs" {
   tags = local.common_tags
 }
 
-# Create IAM role policy for VPC Flow Logs
+# VPC Flow Logs policy
 resource "aws_iam_role_policy" "vpc_flow_logs" {
   name = "${local.name_prefix}-vpc-flow-logs"
   role = aws_iam_role.vpc_flow_logs.id
@@ -466,21 +541,22 @@ resource "aws_iam_role_policy" "vpc_flow_logs" {
     Version = "2012-10-17"
     Statement = [
       {
+        Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams"
+          "logs:PutLogEvents"
         ]
-        Effect   = "Allow"
-        Resource = "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:*"
+        Resource = [
+          "${aws_cloudwatch_log_group.vpc_flow_logs.arn}",
+          "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:log-stream:*"
+        ]
       }
     ]
   })
 }
 
-# Add KMS permissions to lambda_policy for the main Lambda role
+
+# KMS key policies
 resource "aws_iam_role_policy" "lambda_kms" {
   name = "${local.name_prefix}-lambda-kms"
   role = aws_iam_role.lambda_role.id
@@ -494,7 +570,12 @@ resource "aws_iam_role_policy" "lambda_kms" {
           "kms:Decrypt",
           "kms:GenerateDataKey"
         ]
-        Resource = aws_kms_key.rds.arn
+        Resource = [
+          aws_kms_key.rds.arn,
+          aws_kms_key.s3.arn,
+          aws_kms_key.cloudwatch_logs.arn,
+          aws_kms_key.lambda_env.arn
+        ]
       }
     ]
   })
@@ -595,7 +676,7 @@ resource "aws_iam_role_policy" "lambda3_secrets" {
   })
 }
 
-# Add S3 and KMS permissions for Lambda roles to access encrypted buckets
+# S3 bucket access policies
 resource "aws_iam_role_policy" "lambda_s3" {
   name = "${local.name_prefix}-lambda-s3"
   role = aws_iam_role.lambda_role.id
@@ -607,23 +688,22 @@ resource "aws_iam_role_policy" "lambda_s3" {
         Effect = "Allow"
         Action = [
           "s3:GetObject",
-          "s3:PutObject",
-          "s3:ListBucket"
+          "s3:PutObject"
         ]
         Resource = [
-          aws_s3_bucket.lambda_deployment.arn,
           "${aws_s3_bucket.lambda_deployment.arn}/*",
-          aws_s3_bucket.access_logs.arn,
           "${aws_s3_bucket.access_logs.arn}/*"
         ]
       },
       {
         Effect = "Allow"
         Action = [
-          "kms:Decrypt",
-          "kms:GenerateDataKey"
+          "s3:ListBucket"
         ]
-        Resource = aws_kms_key.s3.arn
+        Resource = [
+          aws_s3_bucket.lambda_deployment.arn,
+          aws_s3_bucket.access_logs.arn
+        ]
       }
     ]
   })
@@ -727,6 +807,7 @@ resource "aws_iam_user_policy" "admin_kms" {
 }
 
 # Add DynamoDB permissions to lambda_policy
+# DynamoDB access policy
 resource "aws_iam_role_policy" "lambda_dynamodb" {
   name = "${local.name_prefix}-dynamodb"
   role = aws_iam_role.lambda_role.id
@@ -737,7 +818,6 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
       {
         Effect = "Allow"
         Action = [
-          "dynamodb:DescribeTable",
           "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
@@ -746,15 +826,14 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
           "dynamodb:Scan"
         ]
         Resource = [
-          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/trading-prod-tradovate-tokens",
-          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/trading-prod-tradovate-tokens/index/*",
-          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/trading-prod-tradovate-cache",
-          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/trading-prod-tradovate-cache/index/*"
+          aws_dynamodb_table.tradovate_tokens.arn,
+          aws_dynamodb_table.tradovate_cache.arn
         ]
       }
     ]
   })
 }
+
 
 resource "aws_iam_role" "cloudtrail_cloudwatch" {
   name                  = "AWSCloudTrailLogStream"
@@ -777,32 +856,26 @@ resource "aws_iam_role" "cloudtrail_cloudwatch" {
   })
 }
 
+# CloudTrail CloudWatch policy
 resource "aws_iam_policy" "cloudtrail_cloudwatch" {
-  name        = "Cloudtrail-CW-access-policy-trading-prod-events-817bf784-9352-4ded-9a77-cccb5d2178b9"
-  path        = "/service-role/"
-  description = "Policy for config CloudWathLogs for trail trading-prod-events, created by CloudTrail console"
+  name = "Cloudtrail-CW-access-policy-trading-prod-events"
+  path = "/service-role/"
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "AWSCloudTrailCreateLogStream2014110"
         Effect = "Allow"
-        Action = [
-          "logs:CreateLogStream"
-        ]
+        Action = ["logs:CreateLogStream"]
         Resource = [
-          "arn:aws:logs:us-east-1:565625954376:log-group:aws-cloudtrail-logs-565625954376-7f92262f:log-stream:565625954376_CloudTrail_us-east-1*"
+          "${aws_cloudwatch_log_group.cloudtrail.arn}:log-stream:${data.aws_caller_identity.current.account_id}_CloudTrail_${var.aws_region}*"
         ]
       },
       {
-        Sid    = "AWSCloudTrailPutLogEvents20141101"
         Effect = "Allow"
-        Action = [
-          "logs:PutLogEvents"
-        ]
+        Action = ["logs:PutLogEvents"]
         Resource = [
-          "arn:aws:logs:us-east-1:565625954376:log-group:aws-cloudtrail-logs-565625954376-7f92262f:log-stream:565625954376_CloudTrail_us-east-1*"
+          "${aws_cloudwatch_log_group.cloudtrail.arn}:log-stream:${data.aws_caller_identity.current.account_id}_CloudTrail_${var.aws_region}*"
         ]
       }
     ]
