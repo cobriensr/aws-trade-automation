@@ -1,22 +1,20 @@
 FROM public.ecr.aws/lambda/python:3.12@sha256:92c88c1adc374b073b07b12bd4045497af7da68230d47c2b330423115c5850dc
 
-# Switch to root for system installations and setup
+# Switch to root for system installations
 USER root
 WORKDIR /function
 
-# Install required tools and setup user in a single layer
-RUN microdnf install -y zip findutils shadow-utils && \
-    groupadd -g 1000 lambda && \
-    useradd -u 1000 -g lambda lambda && \
-    chown lambda:lambda /function && \
-    microdnf clean all
+# Install required tools
+RUN microdnf install -y zip findutils && \
+    microdnf clean all && \
+    chown 1000:1000 /function
 
 # Switch to lambda user for all subsequent operations
-USER lambda
+USER 1000:1000
 
 # Copy function code and requirements
-COPY --chown=lambda:lambda main.py .
-COPY --chown=lambda:lambda requirements.txt .
+COPY --chown=1000:1000 main.py .
+COPY --chown=1000:1000 requirements.txt .
 
 # Install packages to a temporary directory, clean them up, and copy to function directory
 RUN pip install --target . --no-cache-dir -r requirements.txt && \
