@@ -1094,3 +1094,27 @@ resource "aws_kms_alias" "cloudtrail" {
   name          = "alias/cloudtrail"
   target_key_id = aws_kms_key.cloudtrail.key_id
 }
+
+# Add ECR repository policy
+resource "aws_ecr_repository_policy" "lambda2_ecr_policy" {
+  repository = aws_ecr_repository.lambda2.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowLambdaAccess"
+        Effect = "Allow"
+        Principal = {
+          AWS = aws_iam_role.lambda2_role.arn
+        }
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:GetAuthorizationToken"
+        ]
+      }
+    ]
+  })
+}
