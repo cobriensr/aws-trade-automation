@@ -72,15 +72,15 @@ jobs:
         REPOSITORY_NAME="trading-prod-symbol-lookup"
         REGISTRY_URL="${{ steps.login-ecr.outputs.registry }}"
         
-        # Build and tag with both commit SHA and latest
+        # Build and tag with both commit SHA and timestamp
         FULL_IMAGE_TAG="${REGISTRY_URL}/${REPOSITORY_NAME}:${COMMIT_SHORT_SHA}"
-        LATEST_TAG="${REGISTRY_URL}/${REPOSITORY_NAME}:latest"
+        TIMESTAMP_TAG="${REGISTRY_URL}/${REPOSITORY_NAME}:$(date +%Y%m%d-%H%M%S)"
         
         docker buildx build --platform linux/amd64 --load -t $FULL_IMAGE_TAG .
-        docker tag $FULL_IMAGE_TAG $LATEST_TAG
+        docker tag $FULL_IMAGE_TAG $TIMESTAMP_TAG
         docker push $FULL_IMAGE_TAG
-        docker push $LATEST_TAG
-    
+        docker push $TIMESTAMP_TAG
+        
         # Update Lambda to use the commit SHA tag
         aws lambda update-function-code \
           --function-name trading-prod-symbol-lookup \
