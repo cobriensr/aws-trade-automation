@@ -33,6 +33,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
 resource "aws_cloudwatch_log_group" "api_logs" {
   name              = "/aws/apigateway/${local.name_prefix}-api"
   retention_in_days = 7
+  kms_key_id        = aws_kms_key.cloudwatch_logs.arn
 
   tags = local.common_tags
 }
@@ -487,7 +488,8 @@ resource "aws_cloudwatch_metric_alarm" "lambda3_invocation_failures" {
 # Create a CloudWatch log group for the flow logs
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc/${local.name_prefix}-vpc-flow-logs"
-  retention_in_days = 30
+  retention_in_days = 7
+  kms_key_id        = aws_kms_key.cloudwatch_logs.arn
   tags              = local.common_tags
 }
 
