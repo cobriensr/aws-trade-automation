@@ -11,14 +11,16 @@ Resources:
       Runtime: python3.12
       Timeout: 30
       MemorySize: 128
+      Tracing: Active
       Events:
         WebhookAPI:
           Type: Api
           Properties:
             Path: /webhook
             Method: POST
-      # Simplified logging config
       LoggingConfig:
         LogFormat: JSON
         LogGroup: "/aws/lambda/trading-function"
         RetentionInDays: 30
+      Policies:
+      - AWSXrayWriteOnlyAccess
