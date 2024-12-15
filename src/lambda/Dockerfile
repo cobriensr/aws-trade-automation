@@ -1,12 +1,12 @@
-FROM public.ecr.aws/docker/library/python:3.12.8
+FROM public.ecr.aws/docker/library/python:3.12.8-alpine3.21
 
 # Switch to root for system installations
 USER root
 WORKDIR /function
 
 # Install required tools
-RUN microdnf install -y zip findutils && \
-    microdnf clean all && \
+RUN apk install -y zip findutils && \
+    apk clean all && \
     chown 1000:1000 /function
 
 # Switch to lambda user for all subsequent operations
