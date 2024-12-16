@@ -2,7 +2,7 @@ FROM amazonlinux:2023 AS builder
 
 # Install build tools and Python as root
 USER root
-RUN dnf install -y gcc gcc-c++ make python3.12 python3.12-pip python3.12-devel shadow-utils gcompat && \
+RUN dnf install -y gcc gcc-c++ make python3.12 python3.12-pip python3.12-devel shadow-utils && \
     useradd -m -u 1001 builder && \
     mkdir /build && \
     chown 1001:1001 /build && \
