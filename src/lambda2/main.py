@@ -154,12 +154,13 @@ def get_historical_data_dict(api_key: str) -> Dict:
         databento_mapping = {
             "MES.n.0": "MES1!",  # E-Mini S&P 500
             "MNQ.n.0": "MNQ1!",  # E-Mini NASDAQ 100
-            "YM.n.0": "YM1!",  # E-Mini Dow
+            "YM.n.0": "YM1!",    # E-Mini Dow
             "RTY.n.0": "RTY1!",  # E-Mini Russell 2000
-            "NG.n.0": "NG1!",  # Natural Gas
-            "GC.n.0": "GC1!",  # Gold
-            "CL.n.0": "CL1!",  # Crude Oil
-            "SI.n.0": "SI1!",  # Silver
+            "NG.n.0": "NG1!",    # Natural Gas
+            "GC.n.0": "GC1!",    # Gold
+            "CL.n.0": "CL1!",    # Crude Oil
+            "SI.n.0": "SI1!",    # Silver
+            "HG.n.0": "HG1!",    # Copper
         }
 
         # Initialize Databento client with timeout handling
