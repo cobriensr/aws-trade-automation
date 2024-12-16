@@ -27,6 +27,9 @@ COPY --chown=1000:1000 trading/ trading/
 
 # Install packages to a temporary directory, clean them up, and copy to function directory
 RUN pip install --target . --no-cache-dir -r requirements.txt && \
+    # Copy necessary musl libraries
+    cp /lib/ld-musl-x86_64.so.1 . && \
+    cp /lib/libc.musl-x86_64.so.1 . && \
     # Remove all test/example/doc directories
     find . -type d -name "tests" -not -path "*/boto*/*" -exec rm -rf {} + && \
     find . -type d -name "test" -not -path "*/boto*/*" -exec rm -rf {} + && \
@@ -44,7 +47,6 @@ RUN pip install --target . --no-cache-dir -r requirements.txt && \
     find . -name "*.h" -not -path "*/boto*/*" -delete && \
     find . -name "*.pxd" -not -path "*/boto*/*" -delete && \
     find . -name "*.pyx" -not -path "*/boto*/*" -delete && \
-    find . -name "*.so.*" -not -path "*/boto*/*" -delete && \
     find . -name "*.pyi" -not -path "*/boto*/*" -delete && \
     find . -name "*.pyc" -not -path "*/boto*/*" -delete && \
     find . -name "*.pyo" -not -path "*/boto*/*" -delete && \

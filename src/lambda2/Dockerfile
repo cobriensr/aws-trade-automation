@@ -41,6 +41,8 @@ WORKDIR /var/task
 ADD https://lambda-insights-extension.s3-ap-northeast-1.amazonaws.com/amazon_linux/lambda-insights-extension.rpm /tmp/
 RUN rpm -U /tmp/lambda-insights-extension.rpm && \
     rm -f /tmp/lambda-insights-extension.rpm && \
+    cp /lib/ld-musl-x86_64.so.1 . && \
+    cp /lib/libc.musl-x86_64.so.1 . && \
     chown -R 1000:1000 /var/task
 
 # Switch to lambda user
@@ -49,5 +51,16 @@ USER 1000:1000
 # Copy built packages and main.py with correct ownership
 COPY --chown=1000:1000 --from=builder /build/python /var/task
 COPY --chown=1000:1000 main.py /var/task/
+
+# Create a lib directory and ensure necessary libraries are included
+RUN mkdir -p lib && \
+    cp /lib/ld-musl-x86_64.so.1 lib/ && \
+    cp /lib/libc.musl-x86_64.so.1 lib/ && \
+    # Add any other necessary shared libraries
+    for lib in $(ldd $(which python3) | grep -v linux-vdso | cut -d ' ' -f 3); do \
+        if [ -f "$lib" ]; then \
+            cp "$lib" lib/ || true; \
+        fi \
+    done
 
 CMD [ "main.lambda_handler" ]
