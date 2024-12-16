@@ -66,25 +66,15 @@ jobs:
         KMS_KEY_ARN: ${{ secrets.KMS_KEY_ARN }}
 
     - name: Build and push Lambda 2 container
+      id: build-lambda2
       run: |
         cd src/lambda2
         COMMIT_SHORT_SHA=$(git rev-parse --short HEAD)
         REPOSITORY_NAME="trading-prod-symbol-lookup"
         REGISTRY_URL="${{ steps.login-ecr.outputs.registry }}"
         
-        # Build and tag with both commit SHA and timestamp
         FULL_IMAGE_TAG="${REGISTRY_URL}/${REPOSITORY_NAME}:${COMMIT_SHORT_SHA}"
-        TIMESTAMP_TAG="${REGISTRY_URL}/${REPOSITORY_NAME}:$(date +%Y%m%d-%H%M%S)"
-        
-        docker buildx build --platform linux/amd64 --load -t $FULL_IMAGE_TAG .
-        docker tag $FULL_IMAGE_TAG $TIMESTAMP_TAG
-        docker push $FULL_IMAGE_TAG
-        docker push $TIMESTAMP_TAG
-        
-        # Update Lambda to use the commit SHA tag
-        aws lambda update-function-code \
-          --function-name trading-prod-symbol-lookup \
-          --image-uri "$FULL_IMAGE_TAG"
+        echo "image_uri=${FULL_IMAGE_TAG}" >> $GITHUB_OUTPUT  # Add this line to save the URI
 
     - name: Build and package Lambda 3
       run: |
@@ -149,10 +139,10 @@ jobs:
           --function-name trading-prod-function \
           --s3-bucket trading-lambda-deployment \
           --s3-key lambda_function.zip
-
+    
         aws lambda update-function-code \
           --function-name trading-prod-symbol-lookup \
-          --image-uri "${REGISTRY_URL}/${REPOSITORY_NAME}:${COMMIT_SHORT_SHA}"
+          --image-uri "${{ steps.build-lambda2.outputs.image_uri }}"
         
         aws lambda update-function-code \
           --function-name trading-prod-coinbase \
