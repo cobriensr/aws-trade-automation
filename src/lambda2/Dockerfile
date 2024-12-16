@@ -20,8 +20,19 @@ RUN pip3.12 install --no-cache-dir -r requirements.txt -t python/
 
 FROM public.ecr.aws/docker/library/python:3.12.8-alpine3.21
 
-# Install required tools
-RUN apk add --no-cache rpm gcc python3-dev musl-dev linux-headers zip findutils gcompat
+# Install required tools and ensure musl compatibility
+RUN apk add --no-cache \
+    rpm \
+    gcc \
+    python3-dev \
+    musl-dev \
+    linux-headers \
+    zip \
+    findutils \
+    gcompat \
+    libc6-compat \
+    libstdc++ \
+    && ln -s /lib/libc.musl-x86_64.so.1 /lib/ld-linux-x86-64.so.2
 
 # Switch to root for system installations and setup
 USER root

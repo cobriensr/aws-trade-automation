@@ -4,9 +4,19 @@ FROM public.ecr.aws/docker/library/python:3.12.8-alpine3.21
 USER root
 WORKDIR /function
 
-# Install required tools
-RUN apk add --no-cache gcc python3-dev musl-dev linux-headers zip findutils gcompat && \
-    chown 1000:1000 /function
+# Install required tools and ensure musl compatibility
+RUN apk add --no-cache \
+    gcc \
+    python3-dev \
+    musl-dev \
+    linux-headers \
+    zip \
+    findutils \
+    gcompat \
+    libc6-compat \
+    libstdc++ \
+    && ln -s /lib/libc.musl-x86_64.so.1 /lib/ld-linux-x86-64.so.2 \
+    && chown 1000:1000 /function
 
 # Switch to lambda user for all subsequent operations
 USER 1000:1000
