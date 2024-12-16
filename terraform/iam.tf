@@ -424,12 +424,18 @@ resource "aws_iam_role_policy" "lambda_cloudwatch" {
       {
         Effect = "Allow"
         Action = ["cloudwatch:PutMetricData"]
-        Resource = [
-          "arn:aws:cloudwatch:${var.aws_region}:${data.aws_caller_identity.current.account_id}:metrics/Trading/Custom/*",
-          "arn:aws:cloudwatch:${var.aws_region}:${data.aws_caller_identity.current.account_id}:metrics/Trading/Webhook/*",
-          "arn:aws:cloudwatch:${var.aws_region}:${data.aws_caller_identity.current.account_id}:metrics/Trading/Webhook/Resources/*",
-          "arn:aws:cloudwatch:${var.aws_region}:${data.aws_caller_identity.current.account_id}:metrics/Trading/Webhook/Execution/*"
-        ]
+        Resource = "*"  # CloudWatch metrics require "*" for resource
+        Condition = {
+          StringEquals = {
+            "cloudwatch:namespace": [
+              "Trading/Webhook",
+              "Trading/SymbolLookup",
+              "Trading/Webhook/Resources",
+              "Trading/Webhook/Execution",
+              "Trading/Custom"
+            ]
+          }
+        }
       }
     ]
   })
