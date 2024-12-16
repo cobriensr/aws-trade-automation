@@ -15,7 +15,6 @@ RUN apk add --no-cache \
     gcompat \
     libc6-compat \
     libstdc++ \
-    && ln -s /lib/libc.musl-x86_64.so.1 /lib/ld-linux-x86-64.so.2 \
     && chown 1000:1000 /function
 
 # Switch to lambda user for all subsequent operations

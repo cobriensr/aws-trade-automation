@@ -31,8 +31,7 @@ RUN apk add --no-cache \
     findutils \
     gcompat \
     libc6-compat \
-    libstdc++ \
-    && ln -s /lib/libc.musl-x86_64.so.1 /lib/ld-linux-x86-64.so.2
+    libstdc++
 
 # Switch to root for system installations and setup
 USER root
