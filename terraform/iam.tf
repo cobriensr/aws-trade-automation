@@ -829,7 +829,8 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
           "dynamodb:UpdateItem",
           "dynamodb:DeleteItem",
           "dynamodb:Query",
-          "dynamodb:Scan"
+          "dynamodb:Scan",
+          "dynamodb:DescribeTable"
         ]
         Resource = [
           aws_dynamodb_table.tradovate_tokens.arn,
