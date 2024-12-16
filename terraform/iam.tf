@@ -75,11 +75,11 @@ resource "aws_iam_role_policy" "lambda_policy" {
         ]
         Condition = {
           StringEquals = {
-            "ec2:Subnet": [
+            "ec2:Subnet" : [
               aws_subnet.private["a"].id,
               aws_subnet.private["b"].id
             ],
-            "ec2:vpc": aws_vpc.main.id
+            "ec2:vpc" : aws_vpc.main.id
           }
         }
       },
@@ -225,11 +225,11 @@ resource "aws_iam_role_policy" "lambda2_policy" {
         ]
         Condition = {
           StringEquals = {
-            "ec2:Subnet": [
+            "ec2:Subnet" : [
               aws_subnet.private["a"].id,
               aws_subnet.private["b"].id
             ],
-            "ec2:vpc": aws_vpc.main.id
+            "ec2:vpc" : aws_vpc.main.id
           }
         }
       },
@@ -362,11 +362,11 @@ resource "aws_iam_role_policy" "lambda3_policy" {
         ]
         Condition = {
           StringEquals = {
-            "ec2:Subnet": [
+            "ec2:Subnet" : [
               aws_subnet.private["a"].id,
               aws_subnet.private["b"].id
             ],
-            "ec2:vpc": aws_vpc.main.id
+            "ec2:vpc" : aws_vpc.main.id
           }
         }
       },
@@ -422,12 +422,12 @@ resource "aws_iam_role_policy" "lambda_cloudwatch" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect = "Allow"
-        Action = ["cloudwatch:PutMetricData"]
-        Resource = "*"  # CloudWatch metrics require "*" for resource
+        Effect   = "Allow"
+        Action   = ["cloudwatch:PutMetricData"]
+        Resource = "*" # CloudWatch metrics require "*" for resource
         Condition = {
           StringEquals = {
-            "cloudwatch:namespace": [
+            "cloudwatch:namespace" : [
               "Trading/Webhook",
               "Trading/SymbolLookup",
               "Trading/Webhook/Resources",
