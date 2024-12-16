@@ -2,7 +2,7 @@ FROM amazonlinux:2023 AS builder
 
 # Install build tools and Python as root
 USER root
-RUN dnf install -y gcc gcc-c++ make python3.12 python3.12-pip python3.12-devel shadow-utils && \
+RUN dnf install -y gcc gcc-c++ make python3.12 python3.12-pip python3.12-devel shadow-utils gcompat && \
     useradd -m -u 1001 builder && \
     mkdir /build && \
     chown 1001:1001 /build && \
@@ -21,7 +21,7 @@ RUN pip3.12 install --no-cache-dir -r requirements.txt -t python/
 FROM public.ecr.aws/docker/library/python:3.12.8-alpine3.21
 
 # Install required tools
-RUN apk add --no-cache rpm
+RUN apk add --no-cache rpm gcc python3-dev musl-dev linux-headers zip findutils gcompat
 
 # Switch to root for system installations and setup
 USER root

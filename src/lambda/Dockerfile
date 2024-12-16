@@ -5,7 +5,7 @@ USER root
 WORKDIR /function
 
 # Install required tools
-RUN apk add --no-cache gcc python3-dev musl-dev linux-headers zip findutils && \
+RUN apk add --no-cache gcc python3-dev musl-dev linux-headers zip findutils gcompat && \
     chown 1000:1000 /function
 
 # Switch to lambda user for all subsequent operations
