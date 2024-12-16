@@ -1193,6 +1193,25 @@ resource "aws_ecr_repository_policy" "lambda2_ecr_policy" {
           "ecr:GetDownloadUrlForLayer",
           "ecr:GetAuthorizationToken"
         ]
+      },
+      {
+        Sid    = "LambdaECRImageRetrievalPolicy"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Action = [
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:SetRepositoryPolicy",
+          "ecr:DeleteRepositoryPolicy",
+          "ecr:GetRepositoryPolicy"
+        ]
+        Condition = {
+          StringLike = {
+            "aws:sourceArn" = "arn:aws:lambda:us-east-1:${data.aws_caller_identity.current.account_id}:function:*"
+          }
+        }
       }
     ]
   })
