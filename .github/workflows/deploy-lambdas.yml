@@ -152,7 +152,7 @@ jobs:
 
         aws lambda update-function-code \
           --function-name trading-prod-symbol-lookup \
-          --image-uri ${{ steps.login-ecr.outputs.registry }}/trading-prod-symbol-lookup:latest
+          --image-uri "${REGISTRY_URL}/${REPOSITORY_NAME}:${COMMIT_SHORT_SHA}"
         
         aws lambda update-function-code \
           --function-name trading-prod-coinbase \
