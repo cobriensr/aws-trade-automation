@@ -2,7 +2,7 @@ FROM amazonlinux:2023 AS builder
 
 # Install build tools and Python as root
 USER root
-RUN dnf install -y gcc gcc-c++ make python3.12 python3.12-pip python3.12-devel shadow-utils && \
+RUN dnf install -y gcc gcc-c++ make python3.12 python3.12-pip python3.12-devel shadow-utils cmake && \
     useradd -m -u 1001 builder && \
     mkdir /build && \
     chown 1001:1001 /build && \
@@ -16,7 +16,8 @@ WORKDIR /build
 COPY --chown=1001:1001 requirements.txt .
 
 # Install Python packages as non-root user
-RUN pip3.12 install --no-cache-dir -r requirements.txt -t python/
+RUN pip3.12 install --no-cache-dir -r requirements.txt -t python/ && \
+    pip3.12 install --no-cache-dir awslambdaric -t python/
 
 FROM public.ecr.aws/docker/library/python:3.12.8-alpine3.21
 
@@ -25,13 +26,9 @@ RUN apk add --no-cache \
     gcompat \
     libc6-compat \
     libstdc++ \
-    curl \
-    cmake \
-    build-base \
-    python3-dev && \
+    curl && \
     curl -Lo /usr/local/bin/aws-lambda-rie https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie && \
-    chmod +x /usr/local/bin/aws-lambda-rie && \
-    pip install --no-cache-dir awslambdaric
+    chmod +x /usr/local/bin/aws-lambda-rie
 
 WORKDIR /var/task
 
@@ -45,5 +42,6 @@ RUN mkdir -p lib && \
     cp /lib/libc.musl-x86_64.so.1 lib/
 
 # Use Python with Lambda RIE as entrypoint
+ENV PYTHONPATH=/var/task
 ENTRYPOINT [ "/usr/local/bin/python", "-m", "awslambdaric" ]
 CMD [ "main.lambda_handler" ]
