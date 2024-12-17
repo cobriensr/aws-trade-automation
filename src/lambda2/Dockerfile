@@ -25,7 +25,10 @@ RUN apk add --no-cache \
     gcompat \
     libc6-compat \
     libstdc++ \
-    curl && \
+    curl \
+    cmake \
+    build-base \
+    python3-dev && \
     curl -Lo /usr/local/bin/aws-lambda-rie https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie && \
     chmod +x /usr/local/bin/aws-lambda-rie && \
     pip install --no-cache-dir awslambdaric
