@@ -24,3 +24,5 @@ RUN curl -O https://lambda-insights-extension.s3-ap-northeast-1.amazonaws.com/am
 COPY --from=builder /build/python /var/task
 COPY main.py /var/task/
 
+# Specify the handler function
+CMD ["main.handler"]
