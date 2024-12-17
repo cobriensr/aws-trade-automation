@@ -25,4 +25,4 @@ COPY --from=builder /build/python /var/task
 COPY main.py /var/task/
 
 # Specify the handler function
-CMD ["main.handler"]
+CMD ["main.lambda_handler"]
