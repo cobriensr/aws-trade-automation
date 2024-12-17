@@ -31,7 +31,12 @@ RUN apk add --no-cache \
     findutils \
     gcompat \
     libc6-compat \
-    libstdc++
+    libstdc++ \
+    curl
+
+# Install the Lambda Runtime Interface Client
+RUN curl -Lo /usr/local/bin/aws-lambda-rie https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie && \
+    chmod +x /usr/local/bin/aws-lambda-rie
 
 # Switch to root for system installations and setup
 USER root
@@ -44,6 +49,9 @@ RUN rpm -U /tmp/lambda-insights-extension.rpm && \
     cp /lib/ld-musl-x86_64.so.1 . && \
     cp /lib/libc.musl-x86_64.so.1 . && \
     chown -R 1000:1000 /var/task
+
+# Install AWS Lambda Runtime Interface Client
+RUN pip install --no-cache-dir awslambdaric
 
 # Switch to lambda user
 USER 1000:1000
@@ -63,4 +71,6 @@ RUN mkdir -p lib && \
         fi \
     done
 
+# Use the Runtime Interface Client as the entrypoint
+ENTRYPOINT [ "/usr/local/bin/python", "-m", "awslambdaric" ]
 CMD [ "main.lambda_handler" ]
