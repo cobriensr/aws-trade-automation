@@ -37,7 +37,12 @@ RUN apk add --no-cache \
     rust \
     cargo \
     cmake \
-    make
+    make \
+    autoconf \
+    automake \
+    libtool \
+    pkgconfig \
+    curl-dev
 
 # Install the Lambda Runtime Interface Client
 RUN curl -Lo /usr/local/bin/aws-lambda-rie https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie && \
