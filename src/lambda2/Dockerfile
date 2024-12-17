@@ -20,12 +20,15 @@ RUN pip3.12 install --no-cache-dir -r requirements.txt -t python/
 
 FROM public.ecr.aws/docker/library/python:3.12.8-alpine3.21
 
-# Install required tools
+# Install required tools and Runtime Interface Emulator
 RUN apk add --no-cache \
-    aws-lambda-runtime-interface-emulator \
     gcompat \
     libc6-compat \
-    libstdc++
+    libstdc++ \
+    curl && \
+    curl -Lo /usr/local/bin/aws-lambda-rie https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie && \
+    chmod +x /usr/local/bin/aws-lambda-rie && \
+    pip install --no-cache-dir awslambdaric
 
 WORKDIR /var/task
 
