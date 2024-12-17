@@ -1,7 +1,8 @@
-FROM public.ecr.aws/lambda/python:3.12 AS builder
+FROM public.ecr.aws/lambda/python:3.12 as builder
 
 # Install build tools
-RUN yum install -y gcc gcc-c++ make cmake
+RUN dnf install -y gcc gcc-c++ make cmake && \
+    dnf clean all
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
