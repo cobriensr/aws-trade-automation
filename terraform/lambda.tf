@@ -28,7 +28,7 @@ resource "aws_lambda_function" "main" {
       TRADOVATE_DEVICE_ID               = "${data.aws_ssm_parameter.tradovate_device_id.value}"
       TRADOVATE_CID                     = "${data.aws_ssm_parameter.tradovate_cid.value}"
       TRADOVATE_SECRET                  = "${data.aws_ssm_parameter.tradovate_secret.value}"
-      LAMBDA2_FUNCTION_NAME             = "${aws_lambda_function.symbol_lookup.function_name}:${aws_lambda_alias.symbol_lookup.name}"
+      LAMBDA2_FUNCTION_NAME             = "${aws_lambda_function.symbol_lookup.function_name}"
     }
   }
 
@@ -44,12 +44,6 @@ resource "aws_lambda_function" "main" {
   tags = local.common_tags
 }
 
-resource "aws_lambda_alias" "main" {
-  name             = "prod"
-  function_name    = aws_lambda_function.main.function_name
-  function_version = aws_lambda_function.main.version
-}
-
 # Lambda 2 (Symbol lookup)
 resource "aws_lambda_function" "symbol_lookup" {
   function_name = "${local.name_prefix}-symbol-lookup"
@@ -59,7 +53,9 @@ resource "aws_lambda_function" "symbol_lookup" {
   memory_size   = 3008
   publish       = true
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.lambda2.repository_url}@${data.aws_ecr_image.lambda2.image_digest}"
+  
+  # Use a placeholder image URI
+  image_uri     = "565625954376.dkr.ecr.us-east-1.amazonaws.com/trading-prod-symbol-lookup:04e3abe"
 
   environment {
     variables = {
@@ -81,12 +77,6 @@ resource "aws_lambda_function" "symbol_lookup" {
   }
 
   tags = local.common_tags
-}
-
-resource "aws_lambda_alias" "symbol_lookup" {
-  name             = "prod"
-  function_name    = aws_lambda_function.symbol_lookup.function_name
-  function_version = aws_lambda_function.symbol_lookup.version
 }
 
 # Lambda 3 (Coinbase)
@@ -126,10 +116,4 @@ resource "aws_lambda_function" "coinbase" {
   }
 
   tags = local.common_tags
-}
-
-resource "aws_lambda_alias" "coinbase" {
-  name             = "prod"
-  function_name    = aws_lambda_function.coinbase.function_name
-  function_version = aws_lambda_function.coinbase.version
 }

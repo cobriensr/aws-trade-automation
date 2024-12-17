@@ -48,8 +48,3 @@ data "aws_ssm_parameter" "coinbase_api_key_name" {
 data "aws_ssm_parameter" "coinbase_private_key" {
   name = "/tradovate/COINBASE_PRIVATE_KEY"
 }
-
-data "aws_ecr_image" "lambda2" {
-  repository_name = aws_ecr_repository.lambda2.name
-  image_tag       = "0dd7cd7"
-}
