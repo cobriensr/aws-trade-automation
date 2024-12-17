@@ -75,11 +75,11 @@ resource "aws_iam_role_policy" "lambda_policy" {
         ]
         Condition = {
           StringEquals = {
-            "ec2:Subnet": [
+            "ec2:Subnet" : [
               aws_subnet.private["a"].id,
               aws_subnet.private["b"].id
             ],
-            "ec2:vpc": aws_vpc.main.id
+            "ec2:vpc" : aws_vpc.main.id
           }
         }
       },
@@ -100,8 +100,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
         ]
         Resource = [
           "${aws_lambda_function.symbol_lookup.arn}",
-          "${aws_lambda_function.symbol_lookup.arn}:*",  # For alias/version invocation
-          "${aws_lambda_function.symbol_lookup.arn}:prod"  # Specifically for prod alias
+          "${aws_lambda_function.symbol_lookup.arn}:*",   # For alias/version invocation
+          "${aws_lambda_function.symbol_lookup.arn}:prod" # Specifically for prod alias
         ]
       }
     ]

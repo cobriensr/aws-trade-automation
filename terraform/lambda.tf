@@ -59,7 +59,7 @@ resource "aws_lambda_function" "symbol_lookup" {
   memory_size   = 3008
   publish       = true
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.lambda2.repository_url}:latest"
+  image_uri     = "${aws_ecr_repository.lambda2.repository_url}@${data.aws_ecr_image.lambda2.image_digest}"
 
   environment {
     variables = {
