@@ -32,7 +32,10 @@ RUN apk add --no-cache \
     gcompat \
     libc6-compat \
     libstdc++ \
-    curl
+    curl \
+    build-base \
+    rust \
+    cargo
 
 # Install the Lambda Runtime Interface Client
 RUN curl -Lo /usr/local/bin/aws-lambda-rie https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie && \
@@ -51,7 +54,9 @@ RUN rpm -U /tmp/lambda-insights-extension.rpm && \
     chown -R 1000:1000 /var/task
 
 # Install AWS Lambda Runtime Interface Client
-RUN pip install --no-cache-dir awslambdaric
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir awslambdaric
 
 # Switch to lambda user
 USER 1000:1000
