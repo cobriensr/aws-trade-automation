@@ -254,8 +254,7 @@ def rank_by_volume(top=100) -> List[int]:
             dataset="GLBX.MDP3",
             symbols="ALL_SYMBOLS",
             schema="ohlcv-1d",
-            start=prev_bus_day,
-            end=today,
+            start=prev_bus_day
         )
         df = data.to_df()
         return df.sort_values(by="volume", ascending=False).instrument_id.tolist()[:top]
@@ -280,7 +279,7 @@ def match_symbol_to_rank(instrument_ids: List[int]) -> str:
             symbols=[instrument_ids],
             stype_in="instrument_id",
             stype_out="raw_symbol",
-            start_date=prev_bus_day,
+            start_date=prev_bus_day
         )
         return data
     except Exception as e:
