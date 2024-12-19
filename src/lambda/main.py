@@ -401,11 +401,11 @@ def handle_futures_trade(
 
         # Get symbol mapping
         lambda2_function_name = os.environ["LAMBDA2_FUNCTION_NAME"]
-        mapping_response = invoke_lambda_function(lambda2_function_name)
+        mapping_response = invoke_lambda_function(lambda2_function_name, payload={"market_data": {"symbol": symbol}})
 
         try:
             response_body = json.loads(mapping_response.get("body", "{}"))
-            mapping_dict = response_body.get("data", {})
+            mapping_dict = response_body.get("symbol", {})
             logger.info(f"Received symbol mapping: {json.dumps(mapping_dict)}")
 
             if symbol not in mapping_dict:
