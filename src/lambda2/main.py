@@ -133,14 +133,14 @@ def get_today():
 
 def get_previous_business_day(date=None):
     """
-    Returns the previous business day (Monday-Friday) in YYYY-MM-DD format.
+    Returns the business day before the previous business day (Monday-Friday) in YYYY-MM-DD format.
     If no date is provided, uses current date.
 
     Args:
         date (datetime, optional): Input date. Defaults to None (current date).
 
     Returns:
-        str: Previous business day in YYYY-MM-DD format
+        str: Business day before the previous business day in YYYY-MM-DD format
     """
     # If no date provided, use current date
     if date is None:
@@ -149,7 +149,7 @@ def get_previous_business_day(date=None):
         date = datetime.strptime(date, "%Y-%m-%d")
 
     # Start with previous day
-    prev_day = date - timedelta(days=1)
+    prev_day = date - timedelta(days=2)  # Changed from 1 to 2 to go back an extra day
 
     # Keep going back until we find a business day
     while prev_day.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
