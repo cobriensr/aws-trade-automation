@@ -4,7 +4,7 @@ import json
 import logging
 import time
 import traceback
-from typing import Dict
+from typing import Dict, List
 from datetime import datetime, timedelta, timezone
 from botocore.exceptions import ClientError
 import psutil
@@ -103,9 +103,9 @@ def get_api_key() -> str:
         response = ssm.get_parameter(
             Name="/tradovate/DATABENTO_API_KEY", WithDecryption=True
         )
-        api_key = response["Parameter"]["Value"]
+        key = response["Parameter"]["Value"]
         publish_metric("api_key_retrieval_success")
-        return api_key
+        return key
 
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
@@ -121,115 +121,268 @@ def get_api_key() -> str:
         raise SymbolLookupError(f"API key retrieval failed: {str(e)}") from e
 
 
-def get_previous_business_day(from_date: datetime, lookback_days: int = 1) -> datetime:
-    """Get the previous business day (Mon-Fri), looking back a specified number of days"""
-    business_days_found = 0
-    current_date = from_date
+def get_today():
+    """
+    Returns today's date in YYYY-MM-DD format
 
-    while business_days_found < lookback_days:
-        current_date = current_date - timedelta(days=1)
-        if current_date.weekday() <= 4:  # Monday through Friday
-            business_days_found += 1
-
-    return current_date
+    Returns:
+        str: Today's date in YYYY-MM-DD format
+    """
+    return datetime.now().strftime("%Y-%m-%d")
 
 
-def get_historical_data_dict(api_key: str) -> Dict:
+def get_previous_business_day(date=None):
+    """
+    Returns the previous business day (Monday-Friday) in YYYY-MM-DD format.
+    If no date is provided, uses current date.
+
+    Args:
+        date (datetime, optional): Input date. Defaults to None (current date).
+
+    Returns:
+        str: Previous business day in YYYY-MM-DD format
+    """
+    # If no date provided, use current date
+    if date is None:
+        date = datetime.now()
+    elif isinstance(date, str):
+        date = datetime.strptime(date, "%Y-%m-%d")
+
+    # Start with previous day
+    prev_day = date - timedelta(days=1)
+
+    # Keep going back until we find a business day
+    while prev_day.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
+        prev_day -= timedelta(days=1)
+
+    return prev_day.strftime("%Y-%m-%d")
+
+
+# Get dates for queries
+prev_bus_day = get_previous_business_day()
+today = get_today()
+
+# Initialize Databento client with timeout handling
+api_key = get_api_key()
+db_client = db.Historical(api_key)
+
+
+def extract_base_symbol(symbol):
+    """
+    Extract base symbol from a futures contract symbol.
+
+    Args:
+        symbol (str): Futures contract symbol (e.g., 'MESH5', 'ESH5', 'ZNH5')
+
+    Returns:
+        str: Base symbol without expiration (e.g., 'MES', 'ES', 'ZN')
+    """
+    # Remove any spaces and anything after them (for options symbols like 'E3DZ4 P4800')
+    symbol = symbol.split()[0]
+
+    # Specific mappings for known products
+    if symbol.startswith(
+        ("MES", "MNQ", "M2K", "MGC", "MBT", "MET", "MCL", "MYM")
+    ):  # Micro products
+        return symbol[:3]
+    elif symbol.startswith("6"):  # Currency futures
+        return symbol[:2]
+    elif symbol.startswith(
+        ("ZN", "ZB", "ZF", "ZT", "ZC", "ZS", "ZQ", "ZW", "ZL", "ZM")
+    ):  # Z- products
+        return (
+            symbol[:2] if not symbol.startswith("ZM") else "ZM"
+        )  # Special handling for ZM
+    elif symbol.startswith(
+        (
+            "ES",
+            "NQ",
+            "NG",
+            "CL",
+            "GC",
+            "SI",
+            "HG",
+            "TN",
+            "UB",
+            "YM",
+            "KC",
+            "KE",
+            "RB",
+            "PL",
+        )
+    ):  # Common two-letter products
+        return symbol[:2]
+    elif symbol.startswith(("RTY", "SR3", "SR1")):  # Three-letter products
+        if symbol.startswith("SR"):  # Special handling for SR products
+            return "SR3" if symbol.startswith("SR3") else "SR1"
+        return symbol[:3]
+    else:
+        # Find where the expiration month starts
+        for i, char in enumerate(symbol):
+            if char.isdigit() or char in [
+                "F",
+                "G",
+                "H",
+                "J",
+                "K",
+                "M",
+                "N",
+                "Q",
+                "U",
+                "V",
+                "X",
+                "Z",
+            ]:
+                if i > 0:  # Make sure we don't return empty string
+                    return symbol[:i]
+        # If no clear break found, default to first two characters
+        return symbol[:2]
+
+
+def rank_by_volume(top=100) -> List[int]:
+    """
+    Get top volume instruments from Databento.
+
+    Args:
+        top (int): Number of top instruments to return. Defaults to 50.
+
+    Returns:
+        List[int]: List of instrument IDs sorted by volume
+    """
+    try:
+        data = db_client.timeseries.get_range(
+            dataset="GLBX.MDP3",
+            symbols="ALL_SYMBOLS",
+            schema="ohlcv-1d",
+            start=prev_bus_day,
+            end=today,
+        )
+        df = data.to_df()
+        return df.sort_values(by="volume", ascending=False).instrument_id.tolist()[:top]
+    except Exception as e:
+        logger.error(f"Error fetching volume data: {e}")
+        raise
+
+
+def match_symbol_to_rank(instrument_ids: List[int]) -> str:
+    """
+    Convert instrument IDs to symbols using Databento API.
+
+    Args:
+        instrument_ids (List[int]): List of instrument IDs
+
+    Returns:
+        str: Symbol mapping data from Databento
+    """
+    try:
+        data = db_client.symbology.resolve(
+            dataset="GLBX.MDP3",
+            symbols=[instrument_ids],
+            stype_in="instrument_id",
+            stype_out="raw_symbol",
+            start_date=prev_bus_day,
+        )
+        return data
+    except Exception as e:
+        logger.error(f"Error resolving symbols: {e}")
+        raise
+
+
+def clean_symbols(trade_symbols):
+    """
+    Clean and deduplicate symbols list.
+
+    Args:
+        trade_symbols (dict): Symbol data from Databento
+
+    Returns:
+        List[str]: Cleaned list of symbols
+    """
+    # Extract symbols while preserving order
+    sym_list = [item[0]["s"] for item in trade_symbols["result"].values()]
+
+    # Remove symbols with hyphens
+    clean = [s for s in sym_list if "-" not in s]
+
+    # Track seen base symbols to avoid duplicates
+    seen_bases = set()
+    result = []
+
+    for symbol in clean:
+        base = extract_base_symbol(symbol)
+
+        # If we haven't seen this base symbol yet, keep it
+        if base not in seen_bases:
+            seen_bases.add(base)
+            result.append(symbol)
+
+    return result
+
+
+def create_symbol_mapping(cleaned_symbols):
+    """
+    Create mapping between actual contracts and continuous symbols.
+
+    Args:
+        cleaned_symbols (List[str]): List of cleaned symbols
+
+    Returns:
+        dict: Mapping of actual contracts to continuous symbols
+    """
+    # Dictionary to store the mappings
+    databento_mapping = {}
+
+    for symbol in cleaned_symbols:
+        base = extract_base_symbol(symbol)
+        # Create continuous contract symbol (base + "1!")
+        continuous_symbol = f"{base}1!"
+        # Add to mapping (actual contract: continuous contract)
+        databento_mapping[symbol] = continuous_symbol
+
+    return databento_mapping
+
+
+def output_reversed_map(mapped_items, webhook_symbol):
+    """
+    Find actual contract symbol from continuous contract symbol.
+
+    Args:
+        mapped_items (dict): Symbol mapping dictionary
+        webhook_symbol (str): Continuous contract symbol (e.g., 'MES1!')
+
+    Returns:
+        str: Actual contract symbol (e.g., 'MESH5')
+
+    Raises:
+        ValueError: If no matching contract is found
+    """
+    reverse_mapping = {v: k for k, v in mapped_items.items()}
+    actual_contract = reverse_mapping.get(webhook_symbol)
+
+    if actual_contract is None:
+        error_msg = f"No matching contract found for {webhook_symbol}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+    return actual_contract
+
+
+def get_historical_data_dict(lookup_symbol) -> Dict:
     """Get historical data with comprehensive error handling and metrics"""
     start_time = time.time()
-
     try:
-        # Get the previous business day (look back 2 days to ensure we're before the data cutoff)
-        today = datetime.now()
-        previous_business_day = get_previous_business_day(today, lookback_days=2)
-        next_day = previous_business_day + timedelta(days=1)
-
-        # Use previous business day as start and next day as end
-        data_start = previous_business_day.strftime("%Y-%m-%d")
-        data_end = next_day.strftime("%Y-%m-%d")
-
-        logger.info(f"Fetching data for range: {data_start} to {data_end}")
-
-        # Symbol mapping with versioning
-        databento_mapping = {
-            "MES.n.0": "MES1!",  # E-Mini S&P 500
-            "MNQ.n.0": "MNQ1!",  # E-Mini NASDAQ 100
-            "YM.n.0": "YM1!",    # E-Mini Dow
-            "RTY.n.0": "RTY1!",  # E-Mini Russell 2000
-            "NG.n.0": "NG1!",    # Natural Gas
-            "GC.n.0": "GC1!",    # Gold
-            "CL.n.0": "CL1!",    # Crude Oil
-            "SI.n.0": "SI1!",    # Silver
-            "HG.n.0": "HG1!",    # Copper
-        }
-
-        # Initialize Databento client with timeout handling
-        db_client = db.Historical(api_key)
-
-        try:
-            # Get historical data
-            df = db_client.timeseries.get_range(
-                dataset="GLBX.MDP3",
-                schema="definition",
-                stype_in="continuous",
-                symbols=list(
-                    databento_mapping.keys()
-                ),  # Use Databento symbols (GC.n.0 etc)
-                start=data_start,
-                end=data_end,
-            ).to_df()
-        except db.BentoServerError as e:
-            publish_metric("databento_server_error")
-            logger.error(f"Databento server error: {str(e)}")
-            logger.error(f"Request ID: {e.request_id}")
-            raise SymbolLookupError(f"Databento server error: {str(e)}") from e
-        except db.BentoClientError as e:
-            publish_metric("databento_client_error")
-            logger.error(f"Databento client error: {str(e)}")
-            logger.error(f"Request ID: {e.request_id}")
-            raise SymbolLookupError(f"Databento client error: {str(e)}") from e
-        except db.BentoError as e:
-            publish_metric("databento_general_error")
-            logger.error(f"Databento error: {str(e)}")
-            raise SymbolLookupError(f"Databento error: {str(e)}") from e
-
-        if df.empty:
-            raise SymbolLookupError("No data returned from Databento API")
-
-            # Process the data
-        df["date"] = df.index.date
-        pivoted = df.pivot(index="date", columns="symbol", values="raw_symbol")
-
-        if pivoted.empty:
-            raise SymbolLookupError("Failed to process symbol data")
-
-        # Get latest data and map symbols with detailed logging
-        latest_data = pivoted.iloc[-1].to_dict()
-        logger.info(f"Raw latest data: {latest_data}")  # Debug log
-
-        result = {}
-        for k, v in latest_data.items():
-            tradovate_symbol = databento_mapping.get(k)
-            if tradovate_symbol:
-                logger.info(f"Mapping {k} -> {tradovate_symbol} = {v}")
-                result[tradovate_symbol] = v
-            else:
-                logger.warning(f"No mapping found for Databento symbol: {k}")
-
-        # Validate result
-        if not result:
-            raise SymbolLookupError("No symbols mapped in result")
-
-        logger.info(f"Final symbol mapping: {json.dumps(result)}")  # Debug log
+        top_instruments = rank_by_volume()
+        symbols = match_symbol_to_rank(top_instruments)
+        cleaned_list = clean_symbols(symbols)
+        mapping = create_symbol_mapping(cleaned_list)
+        final_symbol = output_reversed_map(mapping, lookup_symbol)
 
         # Record success metrics
         duration = (time.time() - start_time) * 1000
         publish_metric("databento_request_duration", duration, "Milliseconds")
         publish_metric("databento_request_success")
-        publish_metric("symbols_mapped", len(result))
-
-        logger.info(f"Successfully mapped {len(result)} symbols")
-        return result
+        publish_metric("symbols_mapped", len(mapping))
+        return final_symbol
 
     except Exception as e:
         publish_metric("symbol_lookup_error")
@@ -253,14 +406,14 @@ def lambda_handler(event, context) -> Dict:
         logger.info(f"Processing request {request_id}")
         logger.debug(f"Event: {json.dumps(event, indent=2)}")
 
-        # Get API key
-        api_key = get_api_key()
+        # Extract symbol from event
+        lookup_symbol = event.get("market_data").get("symbol")
 
         # Get symbol mapping
-        symbol_mapping = get_historical_data_dict(api_key)
+        final_symbol = get_historical_data_dict(lookup_symbol)
 
         # Log symbol mapping
-        logger.info(f"Symbol mapping result: {json.dumps(symbol_mapping)}")
+        logger.info(f"Symbol mapping result: {final_symbol}")
 
         # Record success response
         response = {
@@ -268,14 +421,14 @@ def lambda_handler(event, context) -> Dict:
             "body": json.dumps(
                 {
                     "status": "success",
-                    "data": symbol_mapping,
+                    "symbol": final_symbol,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             ),
         }
 
         # Log response
-        logger.info(f"Returning response: {json.dumps(response)}")  # Add this log
+        logger.info(f"Returning response: {json.dumps(response)}")
 
         return response
 
