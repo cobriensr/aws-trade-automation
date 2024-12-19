@@ -8,7 +8,7 @@ resource "aws_lambda_function" "main" {
   handler       = "main.lambda_handler"
   runtime       = "python3.12"
   timeout       = 30
-  memory_size   = 3008
+  memory_size   = 512
   publish       = true
   layers = [
     "arn:aws:lambda:us-east-1:580247275435:layer:LambdaInsightsExtension:53"
@@ -50,12 +50,12 @@ resource "aws_lambda_function" "symbol_lookup" {
   kms_key_arn   = aws_kms_key.lambda_env.arn
   role          = aws_iam_role.lambda2_role.arn
   timeout       = 30
-  memory_size   = 3008
+  memory_size   = 512
   publish       = true
   package_type  = "Image"
-  
+
   # Use a placeholder image URI
-  image_uri     = "565625954376.dkr.ecr.us-east-1.amazonaws.com/trading-prod-symbol-lookup:04e3abe"
+  image_uri = "565625954376.dkr.ecr.us-east-1.amazonaws.com/trading-prod-symbol-lookup:04e3abe"
 
   environment {
     variables = {
@@ -89,7 +89,7 @@ resource "aws_lambda_function" "coinbase" {
   handler       = "main.lambda_handler"
   runtime       = "python3.12"
   timeout       = 30
-  memory_size   = 3008
+  memory_size   = 512
   publish       = true
   layers = [
     "arn:aws:lambda:us-east-1:580247275435:layer:LambdaInsightsExtension:53",
