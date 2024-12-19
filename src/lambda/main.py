@@ -405,18 +405,15 @@ def handle_futures_trade(
 
         try:
             response_body = json.loads(mapping_response.get("body", "{}"))
-            mapping_dict = response_body.get("symbol", {})
-            logger.info(f"Received symbol mapping: {json.dumps(mapping_dict)}")
-
-            if symbol not in mapping_dict:
+            mapped_symbol = response_body.get("symbol")
+            
+            if not mapped_symbol:
                 logger.error(f"Symbol mapping error - Input symbol: {symbol}")
-                logger.error(
-                    f"Available mappings: {json.dumps(mapping_dict, indent=2)}"
-                )
-                raise TradingWebhookError(f"Symbol not found in mapping: {symbol}")
+                logger.error(f"Mapping response: {json.dumps(response_body, indent=2)}")
+                raise TradingWebhookError(f"No mapping found for symbol: {symbol}")
 
-            mapped_symbol = mapping_dict[symbol]
             logger.info(f"Successfully mapped symbol {symbol} to {mapped_symbol}")
+            
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse symbol mapping response: {str(e)}")
             logger.error(f"Raw mapping response: {mapping_response}")
