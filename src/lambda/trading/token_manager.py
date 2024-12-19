@@ -16,19 +16,23 @@ class TokenManager:
         try:
             self.dynamodb = boto3.resource("dynamodb")
             logger.info("Successfully initialized DynamoDB resource")
-            
+
             self.table = self.dynamodb.Table(table_name)
             # Test the table connection by checking its status
             table_status = self.table.table_status
-            logger.info(f"Successfully connected to DynamoDB table: {table_name} (Status: {table_status})")
-            
+            logger.info(
+                f"Successfully connected to DynamoDB table: {table_name} (Status: {table_status})"
+            )
+
             self.TOKEN_KEY = "CURRENT_TOKEN"
             self.SAFE_THRESHOLD_MINUTES = 15
             self.MAX_TOKEN_AGE_MINUTES = 75
         except ClientError as e:
-            error_code = e.response.get('Error', {}).get('Code')
-            error_message = e.response.get('Error', {}).get('Message')
-            logger.error(f"DynamoDB initialization error: {error_code} - {error_message}")
+            error_code = e.response.get("Error", {}).get("Code")
+            error_message = e.response.get("Error", {}).get("Message")
+            logger.error(
+                f"DynamoDB initialization error: {error_code} - {error_message}"
+            )
             raise
         except Exception as e:
             logger.error(f"Unexpected error initializing DynamoDB connection: {str(e)}")

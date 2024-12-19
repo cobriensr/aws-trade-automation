@@ -39,15 +39,16 @@ lambda_client = boto3.client("lambda")
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)  # Set to DEBUG for development, INFO for production
 
+
 def handle_healthcheck():
 
     # Get available file descriptors (important for network connections)
     open_fds = len(psutil.Process().open_files())
-    max_fds = os.sysconf('SC_OPEN_MAX')
+    max_fds = os.sysconf("SC_OPEN_MAX")
 
     # Get network stats
     net_connections = len(psutil.Process().connections())
-    
+
     # Get garbage collection stats
     gc_stats = gc.get_stats()
 
@@ -61,16 +62,16 @@ def handle_healthcheck():
             "used_mb": round(psutil.Process().memory_info().rss / (1024 * 1024), 2),
             "percent": psutil.Process().memory_percent(),
             "gc_collections": {
-                "gen0": gc_stats[0]['collections'],
-                "gen1": gc_stats[1]['collections'],
-                "gen2": gc_stats[2]['collections']
-            }
+                "gen0": gc_stats[0]["collections"],
+                "gen1": gc_stats[1]["collections"],
+                "gen2": gc_stats[2]["collections"],
+            },
         },
         "cpu_percent": psutil.Process().cpu_percent(),
         "runtime": {
             "python_version": platform.python_version(),
             "platform": platform.platform(),
-            "thread_count": thread_count
+            "thread_count": thread_count,
         },
         "container": {
             "uptime_seconds": int(psutil.Process().create_time() - psutil.boot_time())
@@ -79,23 +80,22 @@ def handle_healthcheck():
             "open_file_descriptors": open_fds,
             "max_file_descriptors": max_fds,
             "fd_usage_percent": round((open_fds / max_fds) * 100, 2),
-            "active_network_connections": net_connections
+            "active_network_connections": net_connections,
         },
         "env": {
-            "aws_region": os.environ.get('AWS_REGION'),
-            "function_name": os.environ.get('AWS_LAMBDA_FUNCTION_NAME'),
-            "function_version": os.environ.get('AWS_LAMBDA_FUNCTION_VERSION'),
-            "memory_limit": int(os.environ.get('AWS_LAMBDA_FUNCTION_MEMORY_SIZE', 0))
-        }
+            "aws_region": os.environ.get("AWS_REGION"),
+            "function_name": os.environ.get("AWS_LAMBDA_FUNCTION_NAME"),
+            "function_version": os.environ.get("AWS_LAMBDA_FUNCTION_VERSION"),
+            "memory_limit": int(os.environ.get("AWS_LAMBDA_FUNCTION_MEMORY_SIZE", 0)),
+        },
     }
-    
+
     return {
         "statusCode": 200,
         "body": json.dumps(health_data),
-        "headers": {
-            "Content-Type": "application/json"
-        }
+        "headers": {"Content-Type": "application/json"},
     }
+
 
 class TradingWebhookError(Exception):
     """Custom exception for webhook processing errors"""
