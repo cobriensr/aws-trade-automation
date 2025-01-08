@@ -34,6 +34,7 @@ jobs:
         echo "::add-mask::${{ secrets.TRADOVATE_DEVICE_ID }}"
         echo "::add-mask::${{ secrets.TRADOVATE_CID }}"
         echo "::add-mask::${{ secrets.TRADOVATE_SECRET }}"
+        echo "::add-mask::${{ secrets.COINBASE_PRIVATE_KEY}}"
         # Add pattern matching for dynamic values
         echo "::add-mask::organizations/d0a73c0b-1c05-4ad5-94b9-232dcf7e80f4"
         echo "::add-mask::trading-prod-symbol-lookup"
