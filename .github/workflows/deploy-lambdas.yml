@@ -142,8 +142,9 @@ jobs:
         terraform plan -detailed-exitcode -lock=false | tee plan_output.txt
         PLAN_EXIT_CODE=$?
 
-        # Filter sensitive data from plan output before storing
-        sed -i 's/\(".*secret.*": "\)[^"]*\("/\1******\2/g' plan_output.txt
+        # Remove sensitive data more safely with a simpler pattern
+        grep -v 'secret\|password\|key' plan_output.txt > filtered_plan.txt
+        mv filtered_plan.txt plan_output.txt
 
         if [ $PLAN_EXIT_CODE -eq 2 ]; then
           if grep -q "~ code_sha256" plan_output.txt && \
