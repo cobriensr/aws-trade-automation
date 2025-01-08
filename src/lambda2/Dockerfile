@@ -1,4 +1,4 @@
-FROM amazonlinux:2023 AS builder
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS builder
 
 # Install build tools and Python
 RUN dnf install -y gcc gcc-c++ make python3.12 python3.12-pip python3.12-devel && \
