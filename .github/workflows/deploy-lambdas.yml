@@ -26,15 +26,9 @@ jobs:
 
     - name: Configure secret masking
       run: |
-        echo "::add-mask::${{ secrets.OANDA_SECRET }}"
-        echo "::add-mask::${{ secrets.OANDA_ACCOUNT }}"
-        echo "::add-mask::${{ secrets.DATABENTO_API_KEY }}"
-        echo "::add-mask::${{ secrets.TRADOVATE_USERNAME }}"
-        echo "::add-mask::${{ secrets.TRADOVATE_PASSWORD }}"
-        echo "::add-mask::${{ secrets.TRADOVATE_DEVICE_ID }}"
-        echo "::add-mask::${{ secrets.TRADOVATE_CID }}"
-        echo "::add-mask::${{ secrets.TRADOVATE_SECRET }}"
-        echo "::add-mask::${{ secrets.COINBASE_PRIVATE_KEY}}"
+        echo "::add-mask::${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+        echo "::add-mask::${{ secrets.AWS_ACCESS_KEY_ID }}"
+        echo "::add-mask::${{ secrets.KMS_KEY_ARN }}"
         # Add pattern matching for dynamic values
         echo "::add-mask::organizations/d0a73c0b-1c05-4ad5-94b9-232dcf7e80f4"
         echo "::add-mask::trading-prod-symbol-lookup"
@@ -168,18 +162,31 @@ jobs:
         fi
 
     - name: Update Lambda functions
+      env:
+        TF_LOG: ERROR
       run: |
+        # Mask sensitive output
+        set +x
+        
+        echo "Updating Lambda function: trading-prod-function..."
         aws lambda update-function-code \
           --function-name trading-prod-function \
           --s3-bucket trading-lambda-deployment \
-          --s3-key lambda_function.zip
+          --s3-key lambda_function.zip \
+          --no-cli-pager \
+          --output json | grep -v 'Environment\|Variables'
     
-        # Use the saved image URI from the build step
+        echo "Updating Lambda function: trading-prod-symbol-lookup..."
         aws lambda update-function-code \
           --function-name trading-prod-symbol-lookup \
-          --image-uri "${{ steps.build-lambda2.outputs.image_uri }}"
+          --image-uri "${{ steps.build-lambda2.outputs.image_uri }}" \
+          --no-cli-pager \
+          --output json | grep -v 'Environment\|Variables'
         
+        echo "Updating Lambda function: trading-prod-coinbase..."
         aws lambda update-function-code \
           --function-name trading-prod-coinbase \
           --s3-bucket trading-lambda-deployment \
-          --s3-key lambda3_function.zip
+          --s3-key lambda3_function.zip \
+          --no-cli-pager \
+          --output json | grep -v 'Environment\|Variables'
