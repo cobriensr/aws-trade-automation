@@ -18,9 +18,27 @@ permissions:
 jobs:
   build-and-check:
     runs-on: ubuntu-latest
+    env:
+      ACTIONS_STEP_DEBUG: false
     
     steps:
     - uses: actions/checkout@v4
+
+    - name: Configure secret masking
+      run: |
+        echo "::add-mask::${{ secrets.OANDA_SECRET }}"
+        echo "::add-mask::${{ secrets.OANDA_ACCOUNT }}"
+        echo "::add-mask::${{ secrets.DATABENTO_API_KEY }}"
+        echo "::add-mask::${{ secrets.TRADOVATE_USERNAME }}"
+        echo "::add-mask::${{ secrets.TRADOVATE_PASSWORD }}"
+        echo "::add-mask::${{ secrets.TRADOVATE_DEVICE_ID }}"
+        echo "::add-mask::${{ secrets.TRADOVATE_CID }}"
+        echo "::add-mask::${{ secrets.TRADOVATE_SECRET }}"
+        # Add pattern matching for dynamic values
+        echo "::add-mask::organizations/d0a73c0b-1c05-4ad5-94b9-232dcf7e80f4"
+        echo "::add-mask::trading-prod-symbol-lookup"
+        echo "::add-mask::trading-prod-function"
+        echo "::add-mask::trading-prod-coinbase"
 
     - name: Set up Python
       uses: actions/setup-python@v3
@@ -123,6 +141,9 @@ jobs:
         terraform refresh
         terraform plan -detailed-exitcode -lock=false | tee plan_output.txt
         PLAN_EXIT_CODE=$?
+
+        # Filter sensitive data from plan output before storing
+        sed -i 's/\(".*secret.*": "\)[^"]*\("/\1******\2/g' plan_output.txt
 
         if [ $PLAN_EXIT_CODE -eq 2 ]; then
           if grep -q "~ code_sha256" plan_output.txt && \
