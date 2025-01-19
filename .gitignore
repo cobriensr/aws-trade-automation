@@ -273,3 +273,73 @@ src/lambda/**/*.egg-info/
 # To be even more thorough, you can add:
 src/lambda/*.whl
 src/lambda/**/*.whl
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ML specific
+models/*.pth
+models/*.pkl
+models/*.bin
+models/*.onnx
+*.h5
+checkpoints/
+runs/
+logs/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+*.ipynb_metadata
+
+# Training artifacts
+*.log
+wandb/
+mlruns/
+lightning_logs/
+tensorboard/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.venv
+venv/
+ENV/
+
+# Data
+data/*.csv
+data/*.json
+*.csv
+*.xlsx
+*.parquet
+
+# Keep example data
+!data/example_data/*.csv
+
+# Large files
+*.tar.gz
+*.zip
+*.7z
