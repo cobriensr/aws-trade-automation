@@ -648,7 +648,7 @@ def lambda_handler(event, context) -> Dict:
                 response = {"statusCode": 200, "body": json.dumps(result)}
                 return response
 
-            if exchange in ["NYMEX", "COMEX", "CBOT", "CME", "CME_MINI", "ICEUS"]:
+            if exchange in ["NYMEX", "COMEX", "CBOT", "CBOT_MINI", "CME", "CME_MINI", "ICEUS"]:
                 result = handle_futures_trade(
                     creds[2],
                     creds[3],
@@ -663,7 +663,7 @@ def lambda_handler(event, context) -> Dict:
 
             # Add more detailed error for unsupported exchange
             logger.error(
-                "Supported exchanges are: NYMEX, COMEX, CBOT, CME, ICE, OANDA, COINBASE"
+                "Supported exchanges are: NYMEX, COMEX, CBOT, CBOT_MINI, CME, ICE, OANDA, COINBASE"
             )
             response = {
                 "statusCode": 400,
