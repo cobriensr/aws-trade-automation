@@ -44,7 +44,8 @@ def handle_healthcheck():
 
     # Get available file descriptors (important for network connections)
     open_fds = len(psutil.Process().open_files())
-    max_fds = os.sysconf("SC_OPEN_MAX")
+    # Function runs on Linux so this will throw an error in a Windows environment
+    max_fds = os.sysconf("SC_OPEN_MAX") # pylint: disable=no-member
 
     # Get network stats
     net_connections = len(psutil.Process().connections())

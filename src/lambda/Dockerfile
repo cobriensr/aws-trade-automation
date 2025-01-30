@@ -6,15 +6,15 @@ WORKDIR /function
 
 # Install required tools and ensure musl compatibility
 RUN apk add --no-cache \
+findutils \
     gcc \
-    python3-dev \
-    musl-dev \
-    linux-headers \
-    zip \
-    findutils \
     gcompat \
     libc6-compat \
     libstdc++ \
+    linux-headers \
+    musl-dev \
+    python3-dev \
+    zip \
     && chown 1000:1000 /function
 
 # Switch to lambda user for all subsequent operations
