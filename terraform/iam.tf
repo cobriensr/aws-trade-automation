@@ -258,6 +258,25 @@ resource "aws_iam_role_policy" "lambda2_policy" {
   })
 }
 
+# Attach CloudWatch metrics policy to Lambda 1
+resource "aws_iam_role_policy" "lambda_cloudwatch" {
+  name = "cloudwatch_metrics_access"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # Attach CloudWatch metrics policy to Lambda 2 
 resource "aws_iam_role_policy" "lambda2_cloudwatch" {
   name = "cloudwatch_metrics_access"
@@ -419,34 +438,6 @@ resource "aws_iam_role_policy" "lambda3_parameter_store" {
         Resource = [
           "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/tradovate/*",
         ]
-      }
-    ]
-  })
-}
-
-# Lambda CloudWatch metrics policy
-resource "aws_iam_role_policy" "lambda_cloudwatch" {
-  name = "cloudwatch_metrics_access"
-  role = aws_iam_role.lambda_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["cloudwatch:PutMetricData"]
-        Resource = "*" # CloudWatch metrics require "*" for resource
-        Condition = {
-          StringEquals = {
-            "cloudwatch:namespace" : [
-              "Trading/Webhook",
-              "Trading/SymbolLookup",
-              "Trading/Webhook/Resources",
-              "Trading/Webhook/Execution",
-              "Trading/Custom"
-            ]
-          }
-        }
       }
     ]
   })
