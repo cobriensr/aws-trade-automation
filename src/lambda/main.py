@@ -30,6 +30,7 @@ from trading.tradovate import (
     place_buy_order,
     place_sell_order,
 )
+from trading.metrics_manager import TradovateMetricsManager
 
 # Initialize AWS clients
 cloudwatch = boto3.client("cloudwatch")
@@ -534,34 +535,43 @@ def handle_futures_trade(
 
 
 def lambda_handler(event, context) -> Dict:
-    """Main Lambda handler with comprehensive error handling and logging"""
-
-    # Add at the start of lambda_handler
+    """Main Lambda handler with enhanced metrics tracking and comprehensive error handling"""
+    
+    # Initialize metrics manager at the start
+    metrics_manager = TradovateMetricsManager()
+    
+    # Add operation-specific dimensions
+    operation_dimensions = [
+        {'Name': 'FunctionName', 'Value': context.function_name},
+        {'Name': 'FunctionVersion', 'Value': context.function_version}
+    ]
+    metrics_manager.set_default_dimensions(operation_dimensions)
+    
     request_id = context.aws_request_id
     start_time = time.time()
     response = None
     has_error = False
+    operation_name = "Unknown"  # Will be updated based on the endpoint
 
     try:
         # Configure logging
         configure_logger(context)
-        logger.info(
-            f"Lambda cold start check - Function memory: {context.memory_limit_in_mb}MB"
-        )
-        logger.info(
-            f"Concurrent execution context: {context.function_name}-{context.aws_request_id}"
-        )
+        logger.info(f"Lambda cold start check - Function memory: {context.memory_limit_in_mb}MB")
+        logger.info(f"Concurrent execution context: {context.function_name}-{context.aws_request_id}")
 
-        # Monitor concurrent executions
-        monitor_concurrent_executions(context)
+        # Monitor concurrent executions with enhanced metrics
+        metrics_manager.publish_metric_with_zero(
+            "ConcurrentExecutions",
+            1,
+            "Count",
+            [{'Name': 'ExecutionType', 'Value': 'Active'}]
+        )
 
         # Validate required environment variables
         required_env_vars = ["LAMBDA2_FUNCTION_NAME"]
         missing_vars = [var for var in required_env_vars if not os.getenv(var)]
         if missing_vars:
-            raise ValueError(
-                f"Missing required environment variables: {', '.join(missing_vars)}"
-            )
+            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
         logger.info(f"Processing request {request_id}")
         logger.debug(f"Event: {json.dumps(event, indent=2)}")
@@ -572,17 +582,17 @@ def lambda_handler(event, context) -> Dict:
         # Extract path and handle different endpoints
         path = event.get("rawPath", event.get("path", ""))
         logger.info(f"Request path: {path}")
-
-        # Handle different endpoints
+        
+        # Set operation name based on endpoint
         if path.endswith("/healthcheck"):
-            return handle_healthcheck()
-
-        if path.endswith("/oandastatus"):
+            operation_name = "HealthCheck"
+            response = handle_healthcheck()
+        elif path.endswith("/oandastatus"):
+            operation_name = "OandaStatus"
             status = check_account_status(account_id=creds[1], access_token=creds[0])
             response = {"statusCode": 200, "body": json.dumps(status)}
-            return response
-
-        if path.endswith("/tradovatestatus"):
+        elif path.endswith("/tradovatestatus"):
+            operation_name = "TradovateStatus"
             token, _ = get_auth_token(
                 username=creds[2],
                 password=creds[3],
@@ -599,126 +609,84 @@ def lambda_handler(event, context) -> Dict:
             )
             balance = get_cash_balance_snapshot(token, account_id)
             response = {"statusCode": 200, "body": json.dumps(balance)}
-            return response
-
-        if path.endswith("/webhook"):
+        elif path.endswith("/webhook"):
             webhook_data = json.loads(event["body"])
             signal_direction = webhook_data["signal"]["direction"]
             symbol = webhook_data["market_data"]["symbol"]
             exchange = webhook_data["market_data"]["exchange"]
             timestamp = webhook_data["market_data"].get("timestamp")
+            
+            operation_name = f"{exchange.lower()}_trade"
+            
+            # Enhanced webhook metrics dimensions
+            webhook_dimensions = [
+                {'Name': 'Exchange', 'Value': exchange},
+                {'Name': 'Symbol', 'Value': symbol},
+                {'Name': 'Direction', 'Value': signal_direction}
+            ]
+            metrics_manager.publish_metric_with_zero(
+                "webhook_received",
+                1,
+                "Count",
+                webhook_dimensions
+            )
 
-            # Log beginning of each symbol's processing
+            # Log request details
             logger.info("==================== BEGIN PROCESSING ====================")
             logger.info(f"Processing webhook - Symbol: {symbol}")
             logger.info(f"Exchange: {exchange}")
             logger.info(f"Direction: {signal_direction}")
             logger.info(f"Signal Timestamp: {timestamp}")
             logger.info(f"Lambda Request ID: {context.aws_request_id}")
-            logger.info(f"Full payload: {json.dumps(webhook_data, indent=2)}")
 
-            # Add detailed request logging
-            logger.info(f"Full webhook payload: {json.dumps(webhook_data, indent=2)}")
-            logger.info(
-                f"Processing webhook details - Exchange: {exchange}, Symbol: {symbol}, Direction: {signal_direction}"
-            )
-            publish_metric(f"{exchange.lower()}_webhook_received")
-
+            # Handle different exchanges
             if exchange == "COINBASE":
                 result = invoke_lambda_function("trading-prod-coinbase", webhook_data)
-
-                # If result already contains statusCode and body, return it directly
-                if (
-                    isinstance(result, dict)
-                    and "statusCode" in result
-                    and "body" in result
-                ):
-                    logger.info(
-                        f"Propagating Coinbase Lambda response with status {result['statusCode']}"
-                    )
-                    return result
-
-                # Otherwise, wrap the result in a 200 response
+                response = result if isinstance(result, dict) and "statusCode" in result else {"statusCode": 200, "body": json.dumps(result)}
+            elif exchange == "OANDA":
+                result = handle_oanda_trade(creds[1], symbol, signal_direction, creds[0])
                 response = {"statusCode": 200, "body": json.dumps(result)}
-                return response
-
-            if exchange == "OANDA":
-                result = handle_oanda_trade(
-                    creds[1], symbol, signal_direction, creds[0]
-                )
-                response = {"statusCode": 200, "body": json.dumps(result)}
-                return response
-
-            if exchange in ["NYMEX", "COMEX", "CBOT", "CBOT_MINI", "CME", "CME_MINI", "ICEUS"]:
+            elif exchange in ["NYMEX", "COMEX", "CBOT", "CBOT_MINI", "CME", "CME_MINI", "ICEUS"]:
                 result = handle_futures_trade(
-                    creds[2],
-                    creds[3],
-                    creds[4],
-                    creds[5],
-                    creds[6],
-                    symbol,
-                    signal_direction,
+                    creds[2], creds[3], creds[4], creds[5], creds[6], symbol, signal_direction
                 )
                 response = {"statusCode": 200, "body": json.dumps(result)}
-                return response
-
-            # Add more detailed error for unsupported exchange
-            logger.error(
-                "Supported exchanges are: NYMEX, COMEX, CBOT, CBOT_MINI, CME, ICE, OANDA, COINBASE"
-            )
-            response = {
-                "statusCode": 400,
-                "body": json.dumps(
-                    {
+            else:
+                logger.error("Supported exchanges are: NYMEX, COMEX, CBOT, CBOT_MINI, CME, ICE, OANDA, COINBASE")
+                response = {
+                    "statusCode": 400,
+                    "body": json.dumps({
                         "error": f"Unsupported exchange: {exchange}",
-                        "supported_exchanges": [
-                            "NYMEX",
-                            "COMEX",
-                            "CBOT",
-                            "CME",
-                            "ICE",
-                            "OANDA",
-                            "COINBASE",
-                        ],
-                    }
-                ),
+                        "supported_exchanges": ["NYMEX", "COMEX", "CBOT", "CME", "ICE", "OANDA", "COINBASE"]
+                    })
+                }
+        else:
+            response = {
+                "statusCode": 404,
+                "body": json.dumps({"error": "Endpoint not found"})
             }
-            return response
-
-        response = {
-            "statusCode": 404,
-            "body": json.dumps({"error": "Endpoint not found"}),
-        }
-        return response
 
     except json.JSONDecodeError as e:
         has_error = True
         logger.error(f"JSON parsing error: {str(e)}")
         response = {
             "statusCode": 400,
-            "body": json.dumps({"error": "Invalid JSON payload"}),
+            "body": json.dumps({"error": "Invalid JSON payload"})
         }
-        return response
 
     except TradingWebhookError as e:
         has_error = True
         logger.error(f"Trading webhook error: {str(e)}")
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
-        logger.error(
-            f"Request details - Path: {path}, Exchange: {exchange if 'exchange' in locals() else 'N/A'}"
-        )
         response = {
             "statusCode": 400,
-            "body": json.dumps(
-                {
-                    "error": str(e),
-                    "error_type": "TradingWebhookError",
-                    "request_id": request_id,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                }
-            ),
+            "body": json.dumps({
+                "error": str(e),
+                "error_type": "TradingWebhookError",
+                "request_id": request_id,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
         }
-        return response
 
     except Exception as e:
         has_error = True
@@ -726,61 +694,55 @@ def lambda_handler(event, context) -> Dict:
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
         response = {
             "statusCode": 500,
-            "body": json.dumps(
-                {"error": "Internal server error", "request_id": request_id}
-            ),
+            "body": json.dumps({
+                "error": "Internal server error",
+                "request_id": request_id
+            })
         }
-        return response
 
     finally:
-        # Track error rate
-        track_error_rate(has_error)
-        # Calculate duration and log completion
+        # Calculate duration and publish comprehensive metrics
         duration = (time.time() - start_time) * 1000
-        logger.info(f"Request completed in {duration:.2f}ms")
-
-        # Record response status code metric
-        if response:
-            status_code = response.get("statusCode", 500)
-            publish_metric(f"status_code_{status_code}")
-
-            # Record error metrics for non-200 responses
-            if status_code >= 400:
-                publish_metric("error_count")
-                if status_code >= 500:
-                    publish_metric("server_error_count")
-                else:
-                    publish_metric("client_error_count")
-
-        # Record duration metric
-        publish_metric("request_duration", duration, "Milliseconds")
-
-        # Log request completion with relevant details
-        log_message = (
-            f"Request {request_id} completed in {duration:.2f}ms "
-            f"with status {response['statusCode'] if response else 'unknown'}"
-        )
-        if duration > 5000:  # Log warning for slow requests
-            logger.warning(f"{log_message} - Request took longer than 5 seconds")
-        else:
-            logger.info(log_message)
-
-        # Track remaining Lambda execution time
-        remaining_time = context.get_remaining_time_in_millis()
-        if remaining_time < 1000:  # Log warning if less than 1 second remaining
-            logger.warning(f"Low remaining execution time: {remaining_time}ms")
-
-        # Record memory usage
+        
         try:
-            memory_used = (
-                psutil.Process().memory_info().rss / 1024 / 1024
-            )  # Convert to MB
-            publish_metric("memory_used", memory_used, "Megabytes")
-            memory_limit = float(context.memory_limit_in_mb)  # Convert to float
-            threshold = int(memory_limit * 0.9)  # Convert the threshold to integer
-            if memory_used > threshold:
-                logger.warning(f"High memory usage: {memory_used:.2f}MB")
-        except ImportError:
-            logger.warning("psutil not available - memory monitoring disabled")
+            # Get memory usage
+            memory_used = psutil.Process().memory_info().rss / 1024 / 1024
+            memory_limit = float(context.memory_limit_in_mb)
+            memory_utilization = (memory_used / memory_limit) * 100
+            
+            # Publish operation metrics with all relevant data
+            metrics_manager.publish_operation_metrics(
+                operation_name,
+                duration,
+                not has_error,
+                additional_data={
+                    'memory_used': memory_used,
+                    'memory_utilization': memory_utilization,
+                    'remaining_time': context.get_remaining_time_in_millis(),
+                    'status_code': response.get('statusCode', 500) if response else 500
+                }
+            )
+
+            # Log completion details
+            log_message = (
+                f"Request {request_id} completed in {duration:.2f}ms "
+                f"with status {response['statusCode'] if response else 'unknown'}"
+            )
+            
+            if duration > 5000:
+                logger.warning(f"{log_message} - Request took longer than 5 seconds")
+            else:
+                logger.info(log_message)
+
+            # Track resource utilization
+            remaining_time = context.get_remaining_time_in_millis()
+            if remaining_time < 1000:
+                logger.warning(f"Low remaining execution time: {remaining_time}ms")
+            
+            if memory_utilization > 90:
+                logger.warning(f"High memory usage: {memory_used:.2f}MB ({memory_utilization:.1f}%)")
+
         except Exception as e:
-            logger.error(f"Error monitoring memory usage: {str(e)}")
+            logger.error(f"Error in metrics collection: {str(e)}")
+
+    return response
