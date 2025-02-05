@@ -151,8 +151,8 @@ def get_previous_business_day(date=None):
     # Start with previous day
     prev_day = date - timedelta(days=2)  # Changed from 1 to 2 to go back an extra day
 
-    # Keep going back until we find a business day
-    while prev_day.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
+    # Keep going back until we find a business day - 5 = Saturday, 6 = Sunday
+    while prev_day.weekday() >= 5:
         prev_day -= timedelta(days=1)
 
     return prev_day.strftime("%Y-%m-%d")
@@ -252,7 +252,7 @@ def rank_by_volume(top=100) -> List[int]:
     try:
         data = db_client.timeseries.get_range(
             dataset="GLBX.MDP3",
-            symbols="ALL_SYMBOLS",
+            symbols="[/ >rhj<gF]",
             schema="ohlcv-1d",
             start=prev_bus_day
         )
