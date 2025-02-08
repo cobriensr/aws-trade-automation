@@ -55,7 +55,7 @@ resource "aws_lambda_function" "symbol_lookup" {
   package_type  = "Image"
 
   # Use a placeholder image URI
-  image_uri = "565625954376.dkr.ecr.us-east-1.amazonaws.com/trading-prod-symbol-lookup:04e3abe"
+  image_uri = "565625954376.dkr.ecr.us-east-1.amazonaws.com/trading-prod-symbol-lookup:4e0ca10"
 
   environment {
     variables = {
