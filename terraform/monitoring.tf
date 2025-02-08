@@ -1,15 +1,15 @@
-# monitoring.tf
-
 # Lambda function alarms
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
   alarm_name          = "${local.name_prefix}-lambda-errors"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "1"
   metric_name         = "Errors"
   namespace           = "AWS/Lambda"
-  period              = "60"
   statistic           = "Sum"
   threshold           = "0"
+  treat_missing_data = "notBreaching"  # Add this
+  datapoints_to_alarm = 1  # Add this
+  period = "300"  # Change to 5 minutes for more stable metrics
+  evaluation_periods = "2"  # Require 2 periods of data
   alarm_description = join("\n", [
     "Lambda function errors detected",
     "",
@@ -20,7 +20,6 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
     "https://console.aws.amazon.com/cloudwatch/home?region=${data.aws_region.current.name}#logsV2:log-groups/log-group/${aws_cloudwatch_log_group.lambda_logs.name}"
   ])
   alarm_actions      = [aws_sns_topic.alerts.arn]
-  treat_missing_data = "notBreaching"
 
   dimensions = {
     FunctionName = aws_lambda_function.main.function_name

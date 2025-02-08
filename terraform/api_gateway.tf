@@ -1,5 +1,3 @@
-#api_gateway.tf
-
 resource "aws_lambda_permission" "api_gateway" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
@@ -58,6 +56,7 @@ resource "aws_apigatewayv2_stage" "main" {
       status                  = "$context.status"
       responseLength          = "$context.responseLength"
       integrationErrorMessage = "$context.integrationErrorMessage"
+      executionDuration      = "$context.integrationLatency"
     })
   }
 }

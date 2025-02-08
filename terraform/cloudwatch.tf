@@ -39,6 +39,52 @@ resource "aws_cloudwatch_dashboard" "trading_metrics" {
         }
         width  = 12
         height = 6
+      },      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["Trading/Webhook", "request_duration", { 
+              "stat": "Average",
+              "period": 300,
+              "yAxis": "left"
+            }],
+            [".", "status_code_200", { 
+              "stat": "Sum",
+              "period": 300,
+              "yAxis": "right"
+            }],
+            [".", "memory_used", { 
+              "stat": "Maximum",
+              "period": 300,
+              "yAxis": "right"
+            }]
+          ]
+          view = "timeSeries"
+          stacked = false
+          region = "us-east-1"
+          title = "Trading Webhook Performance"
+          period = 300
+        }
+      },
+      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["AWS/Lambda", "ConcurrentExecutions", "FunctionName", aws_lambda_function.main.function_name, {
+              "stat": "Maximum",
+              "period": 300
+            }],
+            [".", "Invocations", ".", ".", {
+              "stat": "Sum",
+              "period": 300
+            }]
+          ]
+          view = "timeSeries"
+          stacked = false
+          region = "us-east-1"
+          title = "Lambda Execution Stats"
+          period = 300
+        }
       }
     ]
   })
@@ -121,4 +167,42 @@ resource "aws_cloudwatch_dashboard" "concurrency_monitoring" {
       }
     ]
   })
+}
+
+resource "aws_cloudwatch_log_metric_filter" "lambda_health" {
+  name           = "${local.name_prefix}-health-metrics"
+  pattern        = "[timestamp, requestId, level, message]"
+  log_group_name = aws_cloudwatch_log_group.lambda_logs.name
+
+  metric_transformation {
+    name          = "InvocationCount"
+    namespace     = "Trading/Custom"
+    value         = "1"
+    default_value = "0"
+  }
+}
+
+# Add baseline metric alarm
+resource "aws_cloudwatch_metric_alarm" "lambda_baseline" {
+  alarm_name          = "${local.name_prefix}-lambda-baseline"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = "5"
+  metric_name         = "InvocationCount"
+  namespace           = "Trading/Custom"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "1"
+  treat_missing_data  = "breaching"
+  alarm_description   = "Monitor for complete absence of Lambda invocations"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+}
+
+resource "aws_cloudwatch_composite_alarm" "lambda_health" {
+  alarm_name = "${local.name_prefix}-lambda-health"
+  alarm_rule = "ALARM(${aws_cloudwatch_metric_alarm.lambda_errors.alarm_name}) OR ALARM(${aws_cloudwatch_metric_alarm.lambda_duration.alarm_name}) OR ALARM(${aws_cloudwatch_metric_alarm.lambda_throttles.alarm_name})"
+  
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
+  
+  alarm_description = "Composite alarm for overall Lambda health monitoring"
 }
