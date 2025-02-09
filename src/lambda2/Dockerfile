@@ -32,7 +32,6 @@ WORKDIR /build
 # Copy and install requirements
 COPY requirements.txt .
 RUN echo "Upgrading pip..." && \
-    --mount=type=cache,target=/root/.cache/pip && \
     python3.12 -m pip install --upgrade pip && \
     echo "Installing Python packages (phase 1)..." && \
     python3.12 -m pip install --no-cache-dir --no-deps -r requirements.txt -t python/ && \

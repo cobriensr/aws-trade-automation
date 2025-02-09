@@ -156,21 +156,45 @@ def build_docker_image(repository_uri, image_tag):
         env = os.environ.copy()
         env["DOCKER_BUILDKIT"] = "1"  # Enable BuildKit
 
-        # Run build with environment variables
-        build_result = subprocess.run(
-            build_cmd, env=env, capture_output=True, text=True, check=True
+        # Run build process with proper encoding
+        process = subprocess.Popen(
+            build_cmd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding="utf-8",
+            errors="replace",
+            universal_newlines=True,
         )
 
-        print(build_result.stdout)
+        while True:
+            try:
+                # Read line by line with encoding error handling
+                line = process.stdout.readline()
+                if not line and process.poll() is not None:
+                    break
+                if line:
+                    # Handle encoding errors by replacing invalid characters
+                    print(
+                        line.encode("cp1252", errors="replace")
+                        .decode("cp1252", errors="replace")
+                        .rstrip()
+                    )
+            except UnicodeEncodeError:
+                # If we still get encoding errors, just skip the problematic line
+                continue
 
-        if build_result.returncode != 0:
-            raise DockerError(f"Build failed: {build_result.stderr}")
+        # Get the return code
+        return_code = process.poll()
+
+        if return_code != 0:
+            raise DockerError(f"Build process exited with code {return_code}")
 
         print("\nBuild completed successfully!")
         return True
 
     except Exception as e:
-        print(f"\nBuild failed: {str(e)}")
+        print(f"\nBuild failed with error: {str(e)}")
         return False
 
 
