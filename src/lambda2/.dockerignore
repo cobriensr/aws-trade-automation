@@ -1,0 +1,38 @@
+# Version control
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.py[cod]
+*$py.class
+.pytest_cache
+.coverage
+htmlcov
+
+# Virtual environments
+venv
+env
+.env
+.venv
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Build
+*.egg-info
+dist
+build
+
+# Temp files
+*.log
+.DS_Store
+tmp
+temp
