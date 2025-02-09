@@ -7,32 +7,36 @@ ENV LANG=C.UTF-8 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PROGRESS_MSG=1
 
-# Install build tools and Python
-RUN dnf install -y \
-    gcc \
-    gcc-c++ \
-    make \
-    python3.12 \
-    python3.12-pip \
-    python3.12-devel \
-    && dnf clean all \
-    && rm -rf /var/cache/dnf/* \
-    && rm -rf /var/tmp/* \
-    && rm -rf /tmp/*
+# Install build tools and Python in a single layer
+RUN echo "Installing system packages..." && \
+    dnf install -y --setopt=install_weak_deps=False \
+        gcc \
+        gcc-c++ \
+        make \
+        python3.12 \
+        python3.12-pip \
+        python3.12-devel && \
+    echo "Cleaning dnf cache..." && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf/* && \
+    rm -rf /var/tmp/* && \
+    rm -rf /tmp/* && \
+    echo "System packages installed successfully"
 
 # Create and set working directory
 WORKDIR /build
 
-# Copy requirements file
+# Copy and install requirements
 COPY requirements.txt .
-
-# Install Python packages with specific options
-RUN python3.12 -m pip install --upgrade pip && \
-    # First install without dependencies to handle complex dependency trees
+RUN echo "Upgrading pip..." && \
+    --mount=type=cache,target=/root/.cache/pip && \
+    python3.12 -m pip install --upgrade pip && \
+    echo "Installing Python packages (phase 1)..." && \
     python3.12 -m pip install --no-cache-dir --no-deps -r requirements.txt -t python/ && \
-    # Then install with dependencies
+    echo "Installing Python packages (phase 2)..." && \
     python3.12 -m pip install --no-cache-dir -r requirements.txt
 
 FROM public.ecr.aws/lambda/python:3.12
@@ -45,9 +49,11 @@ ENV LANG=C.UTF-8 \
     PYTHONUNBUFFERED=1
 
 # Install Lambda Insights agent
-RUN curl -O https://lambda-insights-extension.s3-ap-northeast-1.amazonaws.com/amazon_linux/lambda-insights-extension.rpm && \
+RUN echo "Installing Lambda Insights agent..." && \
+    curl -O https://lambda-insights-extension.s3-ap-northeast-1.amazonaws.com/amazon_linux/lambda-insights-extension.rpm && \
     rpm -U lambda-insights-extension.rpm && \
-    rm -f lambda-insights-extension.rpm
+    rm -f lambda-insights-extension.rpm && \
+    echo "Lambda Insights agent installed successfully"
 
 # Create and prepare task directory
 WORKDIR /var/task
@@ -57,8 +63,16 @@ COPY --from=builder /build/python/ ./
 COPY main.py .
 
 # Set permissions
-RUN chmod 755 main.py && \
-    chmod -R 755 .
+RUN echo "Setting file permissions..." && \
+    chmod 755 main.py && \
+    chmod -R 755 . && \
+    echo "File permissions set successfully" && \
+    echo "Build completed successfully"
+
+# Set image metadata
+LABEL maintainer="AWS Lambda Container" \
+version="1.0" \
+description="Lambda Container for trading-prod-symbol-lookup"
 
 # Specify the handler function
 CMD ["main.lambda_handler"]
