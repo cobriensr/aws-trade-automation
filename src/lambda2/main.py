@@ -19,6 +19,8 @@ logger.setLevel(logging.INFO)
 cloudwatch = boto3.client("cloudwatch")
 ssm = boto3.client("ssm")
 
+cloudwatch_namespace = "Trading/SymbolLookup"
+
 
 class SymbolLookupError(Exception):
     """Custom exception for symbol lookup errors"""
@@ -28,7 +30,7 @@ def publish_metric(name: str, value: float = 1, unit: str = "Count") -> None:
     """Publish a metric to CloudWatch"""
     try:
         cloudwatch.put_metric_data(
-            Namespace="Trading/SymbolLookup",
+            Namespace=cloudwatch_namespace,
             MetricData=[
                 {
                     "MetricName": name,
@@ -74,7 +76,7 @@ def monitor_concurrent_executions():
             }
         ]
 
-        cloudwatch.put_metric_data(Namespace="Trading/SymbolLookup", MetricData=metrics)
+        cloudwatch.put_metric_data(Namespace=cloudwatch_namespace, MetricData=metrics)
     except Exception as e:
         logger.error(f"Error publishing concurrency metrics: {str(e)}")
 
@@ -83,7 +85,7 @@ def track_error_rate(has_error: bool):
     """Track error rate for the function"""
     try:
         cloudwatch.put_metric_data(
-            Namespace="Trading/SymbolLookup",
+            Namespace=cloudwatch_namespace,
             MetricData=[
                 {
                     "MetricName": "ErrorRate",
@@ -252,7 +254,7 @@ def rank_by_volume(top=100) -> List[int]:
     try:
         data = db_client.timeseries.get_range(
             dataset="GLBX.MDP3",
-            symbols="[/ >rhj<gF]",
+            symbols="[CL, NG, GC, RTY, YM, SI, HG,  NQ, MBT, ES]",
             schema="ohlcv-1d",
             start=prev_bus_day,
         )
