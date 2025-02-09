@@ -1193,14 +1193,14 @@ resource "aws_ecr_repository_policy" "lambda2_ecr_policy" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    "Statement" : [
       {
-        Sid    = "AllowLambdaAccess"
-        Effect = "Allow"
-        Principal = {
-          AWS = aws_iam_role.lambda2_role.arn
-        }
-        Action = [
+        "Sid" : "AllowLambdaAccess",
+        "Effect" : "Allow",
+        "Principal" : {
+          "AWS" : "arn:aws:iam::565625954376:role/trading-prod-lambda2-role"
+        },
+        "Action" : [
           "ecr:BatchCheckLayerAvailability",
           "ecr:BatchGetImage",
           "ecr:GetDownloadUrlForLayer",
@@ -1212,31 +1212,32 @@ resource "aws_ecr_repository_policy" "lambda2_ecr_policy" {
         ]
       },
       {
-        Sid    = "LambdaECRImageRetrievalPolicy"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-        Action = [
+        "Sid" : "LambdaECRImageRetrievalPolicy",
+        "Effect" : "Allow",
+        "Principal" : {
+          "Service" : "lambda.amazonaws.com"
+        },
+        "Action" : [
           "ecr:BatchGetImage",
           "ecr:GetDownloadUrlForLayer",
           "ecr:SetRepositoryPolicy",
           "ecr:DeleteRepositoryPolicy",
           "ecr:GetRepositoryPolicy"
-        ]
-        Condition = {
-          StringLike = {
-            "aws:sourceArn" = "arn:aws:lambda:us-east-1:${data.aws_caller_identity.current.account_id}:function:*"
+        ],
+        "Condition" : {
+          "StringLike" : {
+            "aws:sourceArn" : "arn:aws:lambda:us-east-1:565625954376:function:*"
           }
         }
       },
       {
-        Sid    = "AllowCrossAccountPush"
-        Effect = "Allow"
-        Principal = {
-          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-        }
-        Action = [
+        "Sid" : "AllowCrossAccountPush",
+        "Effect" : "Allow",
+        "Principal" : {
+          "AWS" : "arn:aws:iam::565625954376:root"
+        },
+        "Action" : [
+          "ecr:GetAuthorizationToken",
           "ecr:BatchCheckLayerAvailability",
           "ecr:BatchGetImage",
           "ecr:CompleteLayerUpload",
