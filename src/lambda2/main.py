@@ -5,13 +5,13 @@ import json
 import logging
 import time
 import traceback
-from typing import Dict, List, Optional
+from typing import Dict, List
 from datetime import datetime, timedelta, timezone
 from botocore.exceptions import ClientError
 import psutil
 import boto3
 import databento as db
-from cache_manager import TradingCache
+from trading.cache_manager import TradingCache
 
 # Configure logger
 logger = logging.getLogger()
