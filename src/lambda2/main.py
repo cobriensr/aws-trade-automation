@@ -255,7 +255,19 @@ def rank_by_volume(top=100) -> List[int]:
         data = db_client.timeseries.get_range(
             dataset="GLBX.MDP3",
             stype_in="continuous",
-            symbols=["ES.n.0", "NQ.n.0", "6E.n.0", "GC.n.0", "RTY.n.0", "CL.n.0", "YM.n.0", "NG.n.0", "MBT.n.0", "HG.n.0", "SI.n.0"],
+            symbols=[
+                "ES.n.0",
+                "NQ.n.0",
+                "6E.n.0",
+                "GC.n.0",
+                "RTY.n.0",
+                "CL.n.0",
+                "YM.n.0",
+                "NG.n.0",
+                "MBT.n.0",
+                "HG.n.0",
+                "SI.n.0",
+            ],
             schema="ohlcv-1d",
             start=prev_bus_day,
         )
