@@ -18,13 +18,7 @@ RUN echo "Installing system packages..." && \
         make \
         python3.12 \
         python3.12-pip \
-        python3.12-devel && \
-    echo "Cleaning dnf cache..." && \
-    dnf clean all && \
-    rm -rf /var/cache/dnf/* && \
-    rm -rf /var/tmp/* && \
-    rm -rf /tmp/* && \
-    echo "System packages installed successfully"
+        python3.12-devel
 
 # Create and set working directory
 WORKDIR /build
@@ -34,7 +28,7 @@ COPY requirements.txt .
 RUN echo "Upgrading pip..." && \
     python3.12 -m pip install --upgrade pip && \
     echo "Installing Python packages (phase 1)..." && \
-    python3.12 -m pip install --no-cache-dir --no-deps -r requirements.txt -t python/ && \
+    python3.12 -m pip install --no-cache-dir -r requirements.txt -t python/ && \
     echo "Installing Python packages (phase 2)..." && \
     python3.12 -m pip install --no-cache-dir -r requirements.txt
 
