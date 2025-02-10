@@ -11,7 +11,7 @@ from botocore.exceptions import ClientError
 import psutil
 import boto3
 import databento as db
-from trading.cache_manager import TradingCache
+from utils.caching import TradingCache
 
 # Configure logger
 logger = logging.getLogger()
