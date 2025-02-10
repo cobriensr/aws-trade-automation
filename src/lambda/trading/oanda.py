@@ -36,6 +36,8 @@ SYMBOL_MAP = {
     "EURAUD": "EUR_AUD",
 }
 
+content_type = "application/json"
+
 
 class OandaAuthError(Exception):
     """Raised when there are authorization issues with OANDA API"""
@@ -56,7 +58,7 @@ def check_position_exists(account_id: str, instrument: str, access_token: str) -
 
     # Set the headers for the API request
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": content_type,
         "Authorization": f"Bearer {access_token}",
     }
 
@@ -104,7 +106,7 @@ def close_long_position(account_id: str, instrument: str, access_token: str) -> 
 
     # Set the headers for the API request
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": content_type,
         "Authorization": f"Bearer {access_token}",
     }
 
@@ -152,7 +154,7 @@ def close_short_position(account_id: str, instrument: str, access_token: str) ->
 
     # Set the headers for the API request
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": content_type,
         "Authorization": f"Bearer {access_token}",
     }
     # Set the body of the request
@@ -202,7 +204,7 @@ def create_long_market_order(
 
     # Set the headers for the API request
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": content_type,
         "Authorization": f"Bearer {access_token}",
     }
 
@@ -265,7 +267,7 @@ def create_short_market_order(
 
     # Set the headers for the API request
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": content_type,
         "Authorization": f"Bearer {access_token}",
     }
 
@@ -321,7 +323,7 @@ def check_account_status(account_id: str, access_token: str) -> Dict:
 
     # Set the headers for the API request
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": content_type,
         "Authorization": f"Bearer {access_token}",
     }
 

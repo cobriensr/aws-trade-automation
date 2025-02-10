@@ -17,6 +17,8 @@ MD = "https://md.tradovateapi.com/v1"
 
 logger = logging.getLogger()
 
+content_type = "application/json"
+
 
 def get_auth_token(
     username: str, password: str, device_id: str, cid: str, secret: str
@@ -141,7 +143,7 @@ def get_contract_info(token: str, contract_ids: list[int]) -> List[Dict]:
     """
     # Set headers
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": content_type,
         "Authorization": f"Bearer {token}",
     }
 
@@ -183,7 +185,7 @@ def get_all_positions(token: str) -> List[Dict]:
     try:
         # Set headers
         headers = {
-            "Content-Type": "application/json",
+            "Content-Type": content_type,
             "Authorization": f"Bearer {token}",
         }
         # Make GET request to get position list
@@ -234,7 +236,7 @@ def liquidate_position(contract_id: str, account_id: str, token: str) -> Dict:
     """
     # Set headers
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": content_type,
         "Authorization": f"Bearer {token}",
     }
 
@@ -286,7 +288,7 @@ def place_buy_order(
     """
     # Set headers
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": content_type,
         "Authorization": f"Bearer {token}",
     }
     # Create request body
@@ -324,7 +326,7 @@ def place_sell_order(
     """
     # Set headers
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": content_type,
         "Authorization": f"Bearer {token}",
     }
     # Create request body

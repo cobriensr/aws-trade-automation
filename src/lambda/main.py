@@ -7,6 +7,7 @@ import time
 import traceback
 from datetime import datetime, timezone
 from typing import Dict, Tuple, Any
+import threading
 import gc
 import platform
 import psutil
@@ -41,62 +42,123 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)  # Set to DEBUG for development, INFO for production
 
 
-def handle_healthcheck():
+def get_system_metrics():
+    """
+    Get system metrics with comprehensive error handling and fallbacks.
+    Returns metrics even if some components fail.
+    """
+    metrics = {"memory": {}, "cpu": None, "io": {}, "runtime": {}, "container": {}}
 
-    # Get available file descriptors (important for network connections)
-    open_fds = len(psutil.Process().open_files())
-    # Function runs on Linux so this will throw an error in a Windows environment
-    max_fds = os.sysconf("SC_OPEN_MAX")  # pylint: disable=no-member
+    try:
+        # Memory metrics with fallback
+        process = psutil.Process()
+        try:
+            metrics["memory"]["used_mb"] = round(
+                process.memory_info().rss / (1024 * 1024), 2
+            )
+            metrics["memory"]["percent"] = process.memory_percent()
+        except (AttributeError, psutil.Error):
+            # Fallback to Lambda environment variables
+            _ = int(os.environ.get("AWS_LAMBDA_FUNCTION_MEMORY_SIZE", 0))
+            metrics["memory"]["used_mb"] = None
+            metrics["memory"]["percent"] = None
 
-    # Get network stats
-    net_connections = len(psutil.Process().connections())
+        # File descriptors with safe handling
+        try:
+            if platform.system() == "Linux":
+                open_fds = len(process.open_files())
+                max_fds = os.sysconf("SC_OPEN_MAX")
+                metrics["io"]["open_file_descriptors"] = open_fds
+                metrics["io"]["max_file_descriptors"] = max_fds
+                metrics["io"]["fd_usage_percent"] = (
+                    round((open_fds / max_fds) * 100, 2) if max_fds else None
+                )
+            else:
+                metrics["io"]["open_file_descriptors"] = None
+                metrics["io"]["max_file_descriptors"] = None
+                metrics["io"]["fd_usage_percent"] = None
+        except (AttributeError, psutil.Error, OSError):
+            metrics["io"]["open_file_descriptors"] = None
+            metrics["io"]["max_file_descriptors"] = None
+            metrics["io"]["fd_usage_percent"] = None
 
-    # Get garbage collection stats
-    gc_stats = gc.get_stats()
+        # Network connections
+        try:
+            metrics["io"]["active_network_connections"] = len(process.connections())
+        except (AttributeError, psutil.Error):
+            metrics["io"]["active_network_connections"] = None
 
-    # Get thread count
-    thread_count = len(psutil.Process().threads())
-
-    health_data = {
-        "status": "healthy",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "memory": {
-            "used_mb": round(psutil.Process().memory_info().rss / (1024 * 1024), 2),
-            "percent": psutil.Process().memory_percent(),
-            "gc_collections": {
-                "gen0": gc_stats[0]["collections"],
-                "gen1": gc_stats[1]["collections"],
-                "gen2": gc_stats[2]["collections"],
-            },
-        },
-        "cpu_percent": psutil.Process().cpu_percent(),
-        "runtime": {
+        # Runtime information (safe operations)
+        metrics["runtime"] = {
             "python_version": platform.python_version(),
             "platform": platform.platform(),
-            "thread_count": thread_count,
-        },
-        "container": {
-            "uptime_seconds": int(psutil.Process().create_time() - psutil.boot_time())
-        },
-        "io": {
-            "open_file_descriptors": open_fds,
-            "max_file_descriptors": max_fds,
-            "fd_usage_percent": round((open_fds / max_fds) * 100, 2),
-            "active_network_connections": net_connections,
-        },
-        "env": {
+            "thread_count": threading.active_count(),
+        }
+
+        # Container uptime with fallback
+        try:
+            metrics["container"]["uptime_seconds"] = int(
+                time.time() - process.create_time()
+            )
+        except (AttributeError, psutil.Error):
+            metrics["container"]["uptime_seconds"] = None
+
+    except Exception as e:
+        logger.error(f"Error collecting system metrics: {str(e)}")
+
+    return metrics
+
+
+def handle_healthcheck():
+    """
+    Handle healthcheck requests with robust metric collection and error handling.
+    Returns basic health data even if some metrics are unavailable.
+    """
+    try:
+        # Get system metrics with fallbacks
+        metrics = get_system_metrics()
+
+        # Add garbage collection stats (these are safe in Lambda)
+        gc_stats = gc.get_stats()
+        metrics["memory"]["gc_collections"] = {
+            "gen0": gc_stats[0]["collections"],
+            "gen1": gc_stats[1]["collections"],
+            "gen2": gc_stats[2]["collections"],
+        }
+
+        # Add environment information (always available in Lambda)
+        metrics["env"] = {
             "aws_region": os.environ.get("AWS_REGION"),
             "function_name": os.environ.get("AWS_LAMBDA_FUNCTION_NAME"),
             "function_version": os.environ.get("AWS_LAMBDA_FUNCTION_VERSION"),
             "memory_limit": int(os.environ.get("AWS_LAMBDA_FUNCTION_MEMORY_SIZE", 0)),
-        },
-    }
+        }
 
-    return {
-        "statusCode": 200,
-        "body": json.dumps(health_data),
-        "headers": {"Content-Type": "application/json"},
-    }
+        health_data = {
+            "status": "healthy",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            **metrics,
+        }
+
+        return {
+            "statusCode": 200,
+            "body": json.dumps(health_data),
+            "headers": {"Content-Type": "application/json"},
+        }
+    except Exception as e:
+        logger.error(f"Error in healthcheck: {str(e)}")
+        # Return basic health data even if detailed metrics fail
+        return {
+            "statusCode": 200,
+            "body": json.dumps(
+                {
+                    "status": "degraded",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "error": str(e),
+                }
+            ),
+            "headers": {"Content-Type": "application/json"},
+        }
 
 
 class TradingWebhookError(Exception):
@@ -739,33 +801,45 @@ def lambda_handler(event, context) -> Dict:
         }
 
     finally:
-        # Calculate duration and publish comprehensive metrics
         duration = (time.time() - start_time) * 1000
 
         try:
-            # Get memory usage
-            memory_used = psutil.Process().memory_info().rss / 1024 / 1024
-            memory_limit = float(context.memory_limit_in_mb)
-            memory_utilization = (memory_used / memory_limit) * 100
+            # Safely get memory metrics with fallback
+            try:
+                memory_used = psutil.Process().memory_info().rss / 1024 / 1024
+                memory_limit = float(context.memory_limit_in_mb)
+                memory_utilization = (memory_used / memory_limit) * 100
+            except (AttributeError, psutil.Error):
+                memory_used = None
+                memory_utilization = None
+                memory_limit = float(context.memory_limit_in_mb)
 
-            # Publish operation metrics with all relevant data
+            # Build metrics data with safe handling of None values
+            metrics_data = {
+                "duration_ms": duration,
+                "remaining_time": context.get_remaining_time_in_millis(),
+                "status_code": response.get("statusCode", 500) if response else 500,
+            }
+
+            # Only add memory metrics if available
+            if memory_used is not None:
+                metrics_data.update(
+                    {
+                        "memory_used": memory_used,
+                        "memory_utilization": memory_utilization,
+                    }
+                )
+
+            # Publish operation metrics
             metrics_manager.publish_operation_metrics(
-                operation_name,
-                duration,
-                not has_error,
-                additional_data={
-                    "memory_used": memory_used,
-                    "memory_utilization": memory_utilization,
-                    "remaining_time": context.get_remaining_time_in_millis(),
-                    "status_code": response.get("statusCode", 500) if response else 500,
-                },
+                operation_name, duration, not has_error, additional_data=metrics_data
             )
 
-            # Log completion details
-            log_message = (
-                f"Request {request_id} completed in {duration:.2f}ms "
-                f"with status {response['statusCode'] if response else 'unknown'}"
+            # Log completion with safe string formatting
+            status_code = (
+                response.get("statusCode", "unknown") if response else "unknown"
             )
+            log_message = f"Request {request_id} completed in {duration:.2f}ms with status {status_code}"
 
             if duration > 5000:
                 logger.warning(f"{log_message} - Request took longer than 5 seconds")
@@ -777,12 +851,11 @@ def lambda_handler(event, context) -> Dict:
             if remaining_time < 1000:
                 logger.warning(f"Low remaining execution time: {remaining_time}ms")
 
-            if memory_utilization > 90:
+            # Only log memory warning if we have valid utilization data
+            if memory_utilization is not None and memory_utilization > 90:
                 logger.warning(
                     f"High memory usage: {memory_used:.2f}MB ({memory_utilization:.1f}%)"
                 )
 
         except Exception as e:
             logger.error(f"Error in metrics collection: {str(e)}")
-
-    return response

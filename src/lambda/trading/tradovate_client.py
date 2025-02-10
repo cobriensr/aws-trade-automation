@@ -9,6 +9,8 @@ from trading.cache_manager import TradovateCache
 
 logger = logging.getLogger()
 
+content_type = "application/json"
+
 
 class TradovateClient:
     """Client for Tradovate API with token management."""
@@ -47,7 +49,7 @@ class TradovateClient:
                 "cid": int(self.cid),
                 "sec": self.secret,
             }
-            headers = {"Content-Type": "application/json"}
+            headers = {"Content-Type": content_type}
 
             logger.info("Requesting new access token from Tradovate")
             response = requests.post(
@@ -91,7 +93,7 @@ class TradovateClient:
             raise ValueError("Failed to obtain valid token")
 
         headers = {
-            "Content-Type": "application/json",
+            "Content-Type": content_type,
             "Authorization": f"Bearer {token}",
         }
 
@@ -124,7 +126,7 @@ class TradovateClient:
         # If not in cache, fetch from API
         token = self.get_valid_token()
         headers = {
-            "Content-Type": "application/json",
+            "Content-Type": content_type,
             "Authorization": f"Bearer {token}",
         }
 
