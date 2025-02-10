@@ -609,7 +609,6 @@ def output_reversed_map(mapped_items, webhook_symbol):
 def get_historical_data_dict(lookup_symbol) -> str:
     """Get historical data with comprehensive error handling, metrics, and caching"""
     global cache_failures
-    start_time = time.time()
     cache_start_time = time.time()
 
     try:
@@ -658,6 +657,7 @@ def get_historical_data_dict(lookup_symbol) -> str:
         if cache_failures < CACHE_FAILURE_THRESHOLD:
             try:
                 cache_write_start = time.time()
+                # Here's the key change: we're caching the lookup_symbol (ES1!) to map to the final_symbol (ESH5)
                 cache_manager.cache_symbol_mapping(lookup_symbol, final_symbol)
                 cache_write_duration = (time.time() - cache_write_start) * 1000
                 publish_metric(
@@ -665,16 +665,11 @@ def get_historical_data_dict(lookup_symbol) -> str:
                 )
                 publish_metric("cache_write_success")
                 cache_failures = 0  # Reset failures on successful write
+                logger.info(f"Successfully cached mapping: {lookup_symbol} -> {final_symbol}")  # Added for clarity
             except Exception as cache_error:
                 cache_failures += 1
                 logger.warning(f"Failed to cache result: {str(cache_error)}")
                 publish_metric("cache_write_error")
-
-        # Record success metrics
-        duration = (time.time() - start_time) * 1000
-        publish_metric("databento_request_duration", duration, "Milliseconds")
-        publish_metric("databento_request_success")
-        publish_metric("symbols_mapped", len(mapping))
 
         return final_symbol
 
