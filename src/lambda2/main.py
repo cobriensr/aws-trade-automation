@@ -8,7 +8,6 @@ import traceback
 from typing import Dict, List
 from datetime import datetime, timedelta, timezone
 from botocore.exceptions import ClientError
-import psutil
 import boto3
 import databento as db
 from utils.caching import TradingCache
@@ -472,6 +471,16 @@ def get_historical_data_dict(lookup_symbol) -> str:
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
         raise SymbolLookupError(f"Failed to get historical data: {str(e)}") from e
 
+def get_memory_usage():
+    """Safely get memory usage information"""
+    try:
+        import psutil
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        return memory_info.rss / 1024 / 1024  # Convert to MB
+    except Exception as e:
+        logger.warning(f"Unable to get memory usage: {str(e)}")
+        return None
 
 def lambda_handler(event, context) -> Dict:
     """Lambda handler with comprehensive error handling and monitoring"""
@@ -588,15 +597,12 @@ def lambda_handler(event, context) -> Dict:
             logger.warning(f"Low remaining execution time: {remaining_time}ms")
 
         try:
-            memory_used = (
-                psutil.Process().memory_info().rss / 1024 / 1024
-            )  # Convert to MB
-            publish_metric("memory_used", memory_used, "Megabytes")
-            memory_limit = float(context.memory_limit_in_mb)
-            threshold = int(memory_limit * 0.9)
-            if memory_used > threshold:
-                logger.warning(f"High memory usage: {memory_used:.2f}MB")
-        except ImportError:
-            logger.warning("psutil not available - memory monitoring disabled")
+            memory_used = get_memory_usage()
+            if memory_used is not None:
+                publish_metric("memory_used", memory_used, "Megabytes")
+                memory_limit = float(context.memory_limit_in_mb)
+                threshold = int(memory_limit * 0.9)
+                if memory_used > threshold:
+                    logger.warning(f"High memory usage: {memory_used:.2f}MB")
         except Exception as e:
-            logger.error(f"Error monitoring memory usage: {str(e)}")
+            logger.error(f"Error in memory monitoring: {str(e)}")

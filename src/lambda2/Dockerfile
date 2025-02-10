@@ -15,22 +15,31 @@ RUN echo "Installing system packages..." && \
     dnf install -y --setopt=install_weak_deps=False \
         gcc \
         gcc-c++ \
+        glibc-devel \
+        linux-headers \
         make \
+        procps-ng-devel \
         python3.12 \
         python3.12-pip \
-        python3.12-devel
+        python3.12-devel \
+        systemd-devel
 
 # Create and set working directory
 WORKDIR /build
 
 # Copy and install requirements
 COPY requirements.txt .
+
+
+# Install packages with specific consideration for psutil
 RUN echo "Upgrading pip..." && \
     python3.12 -m pip install --upgrade pip && \
-    echo "Installing Python packages (phase 1)..." && \
-    python3.12 -m pip install --no-cache-dir -r requirements.txt -t python/ && \
-    echo "Installing Python packages (phase 2)..." && \
-    python3.12 -m pip install --no-cache-dir -r requirements.txt
+    echo "Installing Python packages..." && \
+    python3.12 -m pip install --no-cache-dir \
+        --target python/ \
+        -r requirements.txt && \
+    # Verify psutil installation
+    python3.12 -c "import psutil; print(f'psutil version: {psutil.__version__}')"
 
 FROM public.ecr.aws/lambda/python:3.12
 
