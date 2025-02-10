@@ -1,15 +1,17 @@
-"""Secondary Lambda function for symbol lookup."""
+"""Secondary Lambda function for symbol lookup with enhanced caching and monitoring."""
 
+import os
 import json
 import logging
 import time
 import traceback
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 from botocore.exceptions import ClientError
 import psutil
 import boto3
 import databento as db
+from cache_manager import TradingCache
 
 # Configure logger
 logger = logging.getLogger()
@@ -18,19 +20,23 @@ logger.setLevel(logging.INFO)
 # Initialize AWS clients
 cloudwatch = boto3.client("cloudwatch")
 ssm = boto3.client("ssm")
-
 cloudwatch_namespace = "Trading/SymbolLookup"
 
-# Initialize DynamoDB client
-dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table('tradovate_cache')  # Using existing tradovate cache table
+# Cache configuration from environment variables with defaults
+CACHE_TABLE_NAME = os.environ.get("CACHE_TABLE_NAME", "trading-prod-tradovate-cache")
+CACHE_FAILURE_THRESHOLD = int(os.environ.get("CACHE_FAILURE_THRESHOLD", "3"))
+cache_failures = 0  # Track consecutive cache failures for circuit breaker
 
-# Cache configuration
-SYMBOL_CACHE_TTL = 18 * 60 * 60  # 18 hours in seconds
-CACHE_PREFIX = 'symbol_mapping:'
+# Initialize cache manager with configured table name
+cache_manager = TradingCache(table_name=CACHE_TABLE_NAME)
+
 
 class SymbolLookupError(Exception):
     """Custom exception for symbol lookup errors"""
+
+
+class CacheError(Exception):
+    """Custom exception for cache-related errors"""
 
 
 def publish_metric(name: str, value: float = 1, unit: str = "Count") -> None:
@@ -104,77 +110,6 @@ def track_error_rate(has_error: bool):
         )
     except Exception as e:
         logger.error(f"Error publishing error rate metric: {str(e)}")
-
-def get_cached_symbol(continuous_symbol: str) -> Optional[Dict[str, Any]]:
-    """
-    Retrieve cached symbol mapping from DynamoDB if it exists and is not expired.
-    
-    Args:
-        continuous_symbol (str): The continuous contract symbol (e.g., 'ES1!')
-        
-    Returns:
-        Optional[Dict]: Cached mapping data if found and valid, None otherwise
-    """
-    try:
-        cache_key = f"{CACHE_PREFIX}{continuous_symbol}"
-        response = table.get_item(
-            Key={'cache_key': cache_key},
-            ProjectionExpression='cache_data, ttl'
-        )
-        
-        if 'Item' not in response:
-            logger.info(f"No cache entry found for {continuous_symbol}")
-            return None
-            
-        item = response['Item']
-        current_time = int(datetime.now(timezone.utc).timestamp())
-        
-        # Check if cache has expired
-        if 'ttl' in item and item['ttl'] < current_time:
-            logger.info(f"Cache expired for {continuous_symbol}")
-            return None
-            
-        return json.loads(item['cache_data'])
-        
-    except Exception as e:
-        logger.error(f"Error retrieving from cache: {str(e)}")
-        return None
-
-def cache_symbol_mapping(continuous_symbol: str, actual_symbol: str) -> None:
-    """
-    Store symbol mapping in DynamoDB cache with a 12-hour TTL.
-    
-    Args:
-        continuous_symbol (str): The continuous contract symbol (e.g., 'ES1!')
-        actual_symbol (str): The actual contract symbol (e.g., 'ESH5')
-    """
-    try:
-        cache_key = f"{CACHE_PREFIX}{continuous_symbol}"
-        current_time = datetime.now(timezone.utc)
-        
-        # Prepare cache data
-        cache_data = {
-            'continuous_symbol': continuous_symbol,
-            'actual_symbol': actual_symbol,
-            'cached_at': current_time.isoformat()
-        }
-        
-        # Calculate TTL - 12 hours from now
-        ttl = int((current_time + timedelta(seconds=SYMBOL_CACHE_TTL)).timestamp())
-        
-        # Store in DynamoDB
-        table.put_item(
-            Item={
-                'cache_key': cache_key,
-                'cache_data': json.dumps(cache_data),
-                'ttl': ttl
-            }
-        )
-        
-        logger.info(f"Successfully cached mapping {continuous_symbol} -> {actual_symbol}")
-        
-    except Exception as e:
-        logger.error(f"Error caching symbol mapping: {str(e)}")
 
 
 def get_api_key() -> str:
@@ -461,18 +396,45 @@ def output_reversed_map(mapped_items, webhook_symbol):
 
 def get_historical_data_dict(lookup_symbol) -> str:
     """Get historical data with comprehensive error handling, metrics, and caching"""
+    global cache_failures
     start_time = time.time()
-    
+    cache_start_time = time.time()
+
     try:
-        # Check cache first
-        cached_data = get_cached_symbol(lookup_symbol)
-        if cached_data is not None:
-            logger.info(f"Cache hit for symbol {lookup_symbol}")
-            publish_metric("symbol_cache_hit")
-            return cached_data['actual_symbol']
-        
+        # Only try cache if we haven't had too many failures
+        if cache_failures < CACHE_FAILURE_THRESHOLD:
+            try:
+                # Attempt to retrieve from cache
+                cached_data = cache_manager.get_cached_symbol(lookup_symbol)
+                cache_duration = (time.time() - cache_start_time) * 1000
+                publish_metric(
+                    "cache_operation_duration", cache_duration, "Milliseconds"
+                )
+
+                if cached_data is not None:
+                    cache_failures = 0  # Reset failures on successful cache hit
+                    logger.info(f"Cache hit for symbol {lookup_symbol}")
+                    publish_metric("symbol_cache_hit")
+                    return cached_data["actual_symbol"]
+
+            except Exception as cache_error:
+                cache_failures += 1
+                logger.warning(
+                    f"Cache failure {cache_failures}/{CACHE_FAILURE_THRESHOLD}: {str(cache_error)}"
+                )
+                publish_metric("cache_error")
+        else:
+            logger.warning(
+                f"Cache bypassed due to {cache_failures} consecutive failures"
+            )
+            publish_metric("cache_circuit_breaker_active")
+
+        # Log cache miss and proceed with Databento lookup
+        logger.info(
+            f"Cache miss for symbol {lookup_symbol}, performing Databento lookup"
+        )
         publish_metric("symbol_cache_miss")
-        
+
         # If not in cache or expired, perform the lookup
         top_instruments = rank_by_volume()
         symbols = match_symbol_to_rank(top_instruments)
@@ -480,15 +442,28 @@ def get_historical_data_dict(lookup_symbol) -> str:
         mapping = create_symbol_mapping(cleaned_list)
         final_symbol = output_reversed_map(mapping, lookup_symbol)
 
-        # Cache the result
-        cache_symbol_mapping(lookup_symbol, final_symbol)
+        # Attempt to cache the result if circuit breaker is not active
+        if cache_failures < CACHE_FAILURE_THRESHOLD:
+            try:
+                cache_write_start = time.time()
+                cache_manager.cache_symbol_mapping(lookup_symbol, final_symbol)
+                cache_write_duration = (time.time() - cache_write_start) * 1000
+                publish_metric(
+                    "cache_write_duration", cache_write_duration, "Milliseconds"
+                )
+                publish_metric("cache_write_success")
+                cache_failures = 0  # Reset failures on successful write
+            except Exception as cache_error:
+                cache_failures += 1
+                logger.warning(f"Failed to cache result: {str(cache_error)}")
+                publish_metric("cache_write_error")
 
         # Record success metrics
         duration = (time.time() - start_time) * 1000
         publish_metric("databento_request_duration", duration, "Milliseconds")
         publish_metric("databento_request_success")
         publish_metric("symbols_mapped", len(mapping))
-        
+
         return final_symbol
 
     except Exception as e:
@@ -513,8 +488,14 @@ def lambda_handler(event, context) -> Dict:
         logger.info(f"Processing request {request_id}")
         logger.debug(f"Event: {json.dumps(event, indent=2)}")
 
-        # Extract symbol from event
-        lookup_symbol = event.get("market_data").get("symbol")
+        # Extract symbol from event with validation
+        market_data = event.get("market_data")
+        if not market_data:
+            raise SymbolLookupError("No market_data found in event")
+
+        lookup_symbol = market_data.get("symbol")
+        if not lookup_symbol:
+            raise SymbolLookupError("No symbol found in market_data")
 
         # Get symbol mapping
         final_symbol = get_historical_data_dict(lookup_symbol)
@@ -522,7 +503,7 @@ def lambda_handler(event, context) -> Dict:
         # Log symbol mapping
         logger.info(f"Symbol mapping result: {final_symbol}")
 
-        # Record success response
+        # Record success response with detailed timing
         response = {
             "statusCode": 200,
             "body": json.dumps(
@@ -530,6 +511,12 @@ def lambda_handler(event, context) -> Dict:
                     "status": "success",
                     "symbol": final_symbol,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "request_id": request_id,
+                    "cache_status": (
+                        "bypassed"
+                        if cache_failures >= CACHE_FAILURE_THRESHOLD
+                        else "active"
+                    ),
                 }
             ),
         }
@@ -545,7 +532,16 @@ def lambda_handler(event, context) -> Dict:
         return {
             "statusCode": 400,
             "body": json.dumps(
-                {"status": "error", "error": str(e), "request_id": request_id}
+                {
+                    "status": "error",
+                    "error": str(e),
+                    "request_id": request_id,
+                    "cache_status": (
+                        "bypassed"
+                        if cache_failures >= CACHE_FAILURE_THRESHOLD
+                        else "active"
+                    ),
+                }
             ),
         }
 
@@ -560,20 +556,27 @@ def lambda_handler(event, context) -> Dict:
                     "status": "error",
                     "error": "Internal server error",
                     "request_id": request_id,
+                    "cache_status": (
+                        "bypassed"
+                        if cache_failures >= CACHE_FAILURE_THRESHOLD
+                        else "active"
+                    ),
                 }
             ),
         }
 
     finally:
-        # Track error rate
+        # Track error rate and timing metrics
         track_error_rate(has_error)
-
-        # Calculate and record duration
         duration = (time.time() - start_time) * 1000
         publish_metric("request_duration", duration, "Milliseconds")
 
-        # Log request completion
-        log_message = f"Request {request_id} completed in {duration:.2f}ms"
+        # Enhanced request completion logging
+        log_message = (
+            f"Request {request_id} completed in {duration:.2f}ms "
+            f"(Cache status: {'bypassed' if cache_failures >= CACHE_FAILURE_THRESHOLD else 'active'})"
+        )
+
         if duration > 5000:
             logger.warning(f"{log_message} - Request took longer than 5 seconds")
         else:
@@ -589,8 +592,8 @@ def lambda_handler(event, context) -> Dict:
                 psutil.Process().memory_info().rss / 1024 / 1024
             )  # Convert to MB
             publish_metric("memory_used", memory_used, "Megabytes")
-            memory_limit = float(context.memory_limit_in_mb)  # Convert to float
-            threshold = int(memory_limit * 0.9)  # Convert the threshold to integer
+            memory_limit = float(context.memory_limit_in_mb)
+            threshold = int(memory_limit * 0.9)
             if memory_used > threshold:
                 logger.warning(f"High memory usage: {memory_used:.2f}MB")
         except ImportError:

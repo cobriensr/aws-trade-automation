@@ -65,6 +65,8 @@ resource "aws_lambda_function" "symbol_lookup" {
       AWS_LAMBDA_INITIALIZATION_TIMEOUT = "25"
       FUNCTION_NAME                     = "${local.name_prefix}-symbol-lookup"
       DATABENTO_API_KEY                 = data.aws_ssm_parameter.databento_key.value
+      CACHE_TABLE_NAME                  = aws_dynamodb_table.tradovate_cache.name
+      CACHE_FAILURE_THRESHOLD           = "3"
     }
   }
 
