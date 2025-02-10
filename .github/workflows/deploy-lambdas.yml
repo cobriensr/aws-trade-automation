@@ -2,7 +2,7 @@ name: Deploy Lambdas
 
 on:
   push:
-    branches: [ main ]
+    branches: [ dev ]
     paths:
       - 'src/lambda/**'
       - 'src/lambda2/**'
