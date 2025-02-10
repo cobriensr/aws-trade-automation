@@ -1361,3 +1361,29 @@ resource "aws_iam_role_policy" "lambda3_env_kms" {
     ]
   })
 }
+
+# Add DynamoDB permissions to lambda2_policy
+resource "aws_iam_role_policy" "lambda2_dynamodb" {
+  name = "${local.name_prefix}-lambda2-dynamodb"
+  role = aws_iam_role.lambda2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"
+        ]
+        Resource = [
+          aws_dynamodb_table.tradovate_cache.arn
+        ]
+      }
+    ]
+  })
+}
