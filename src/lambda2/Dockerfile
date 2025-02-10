@@ -10,19 +10,17 @@ ENV LANG=C.UTF-8 \
     PYTHONUNBUFFERED=1 \
     PROGRESS_MSG=1
 
-# Install build tools and Python in a single layer
-RUN echo "Installing system packages..." && \
-    dnf install -y --setopt=install_weak_deps=False \
-        gcc \
-        gcc-c++ \
-        glibc-devel \
-        linux-headers \
-        make \
-        procps-ng-devel \
+# Install development tools and Python packages in a single layer to keep the image size smaller
+RUN dnf groupinstall -y "Development Tools" && \
+    dnf install -y \
         python3.12 \
         python3.12-pip \
         python3.12-devel \
-        systemd-devel
+        procps \
+        kernel-headers \
+        systemd-devel && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf
 
 # Create and set working directory
 WORKDIR /build
@@ -30,16 +28,13 @@ WORKDIR /build
 # Copy and install requirements
 COPY requirements.txt .
 
-
-# Install packages with specific consideration for psutil
+# Install packages
 RUN echo "Upgrading pip..." && \
     python3.12 -m pip install --upgrade pip && \
     echo "Installing Python packages..." && \
     python3.12 -m pip install --no-cache-dir \
         --target python/ \
-        -r requirements.txt && \
-    # Verify psutil installation
-    python3.12 -c "import psutil; print(f'psutil version: {psutil.__version__}')"
+        -r requirements.txt
 
 FROM public.ecr.aws/lambda/python:3.12
 

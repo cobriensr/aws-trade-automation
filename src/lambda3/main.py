@@ -9,7 +9,6 @@ import logging
 from typing import Dict, Tuple
 import boto3
 from botocore.exceptions import ClientError
-import psutil
 from coinbase.rest import RESTClient
 
 # Initialize AWS clients
@@ -32,6 +31,8 @@ def generate_order_id():
 # Configure logger
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
+
+rest_client = "REST client initialized successfully"
 
 
 def monitor_concurrent_executions():
@@ -191,7 +192,7 @@ def determine_order_size(
         InsufficientBalanceError: If balance too low for minimum order
     """
     client = RESTClient(api_key=api_key, api_secret=api_secret)
-    logger.debug("REST client initialized successfully")
+    logger.debug(rest_client)
 
     # Parse the symbol to get base and quote currencies
     base_currency = symbol[:3]  # e.g., 'BTC' from 'BTCUSD'
@@ -314,7 +315,7 @@ def place_order(
 
     # Initialize REST client
     client = RESTClient(api_key=api_key, api_secret=api_secret)
-    logger.debug("REST client initialized successfully")
+    logger.debug(rest_client)
 
     start_time = time.time()
     order_id = str(uuid.uuid4())
@@ -406,7 +407,7 @@ def list_accounts(api_key: str, api_secret: str) -> str:
     try:
         # Initialize REST client
         client = RESTClient(api_key=api_key, api_secret=api_secret)
-        logger.debug("REST client initialized successfully")
+        logger.debug(rest_client)
 
         accounts = client.get_accounts(
             limit=1,
@@ -463,7 +464,7 @@ def close_position(api_key: str, api_secret: str, symbol: str) -> Dict:
 
         # Initialize REST client
         client = RESTClient(api_key=api_key, api_secret=api_secret)
-        logger.debug("REST client initialized successfully")
+        logger.debug(rest_client)
 
         # Format symbol
         formatted_symbol = f"{symbol[:3]}-{symbol[3:]}"
@@ -557,7 +558,7 @@ def list_orders(api_key: str, api_secret: str, symbol: str) -> Dict:
 
         # Initialize REST client
         client = RESTClient(api_key=api_key, api_secret=api_secret)
-        logger.debug("REST client initialized successfully")
+        logger.debug(rest_client)
 
         # Format symbol
         formatted_symbol = f"{symbol[:3]}-{symbol[3:]}"
@@ -831,18 +832,3 @@ def lambda_handler(event, context) -> Dict:
             logger.warning(f"{log_message} - Request took longer than 5 seconds")
         else:
             logger.info(log_message)
-
-        # Monitor memory usage
-        try:
-            memory_used = (
-                psutil.Process().memory_info().rss / 1024 / 1024
-            )  # Convert to MB
-            publish_metric("memory_used", memory_used, "Megabytes")
-            memory_limit = float(context.memory_limit_in_mb)  # Convert to float
-            threshold = int(memory_limit * 0.9)  # Convert the threshold to integer
-            if memory_used > threshold:
-                logger.warning(f"High memory usage: {memory_used:.2f}MB")
-        except ImportError:
-            logger.warning("psutil not available - memory monitoring disabled")
-        except Exception as e:
-            logger.error(f"Error monitoring memory usage: {str(e)}")
