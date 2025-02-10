@@ -54,8 +54,9 @@ resource "aws_lambda_function" "symbol_lookup" {
   publish       = true
   package_type  = "Image"
 
-  # Use a placeholder image URI
-  image_uri = "565625954376.dkr.ecr.us-east-1.amazonaws.com/trading-prod-symbol-lookup:4e0ca10"
+  # Use the current image URI and let the Python script update it
+  image_uri = "565625954376.dkr.ecr.us-east-1.amazonaws.com/trading-prod-symbol-lookup:latest"
+
 
   environment {
     variables = {
@@ -75,6 +76,12 @@ resource "aws_lambda_function" "symbol_lookup" {
   tracing_config {
     mode = "Active"
   }
+
+  # Only ignore image_uri since it's managed by the Python script
+  lifecycle {
+    ignore_changes = [image_uri]
+  }
+
 
   tags = local.common_tags
 }
