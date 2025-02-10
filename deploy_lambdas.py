@@ -369,10 +369,25 @@ def create_zip_package(source_dir):
         shutil.rmtree(temp_dir)
     os.makedirs(temp_dir)
 
-    # Copy Python files
-    for file in os.listdir(source_dir):
-        if file.endswith(".py"):
-            shutil.copy2(os.path.join(source_dir, file), temp_dir)
+    # Copy all Python files and directories, preserving structure
+    def copy_source_files(src, dst):
+        for item in os.listdir(src):
+            src_path = os.path.join(src, item)
+            dst_path = os.path.join(dst, item)
+            
+            # Skip common files/directories we don't want
+            if item in {'.git', '__pycache__', '*.pyc', '.env'}:
+                continue
+                
+            if os.path.isdir(src_path):
+                # Recursively copy directories
+                shutil.copytree(src_path, dst_path)
+            elif item.endswith('.py'):
+                # Copy Python files
+                shutil.copy2(src_path, dst_path)
+
+    # Copy source files with structure preserved
+    copy_source_files(source_dir, temp_dir)
 
     # Install dependencies from requirements.txt
     requirements_file = os.path.join(source_dir, "requirements.txt")
