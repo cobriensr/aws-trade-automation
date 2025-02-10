@@ -4,7 +4,7 @@ import json
 import logging
 import time
 import traceback
-from typing import Dict, List
+from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta, timezone
 from botocore.exceptions import ClientError
 import psutil
@@ -21,6 +21,13 @@ ssm = boto3.client("ssm")
 
 cloudwatch_namespace = "Trading/SymbolLookup"
 
+# Initialize DynamoDB client
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('tradovate_cache')  # Using existing tradovate cache table
+
+# Cache configuration
+SYMBOL_CACHE_TTL = 18 * 60 * 60  # 18 hours in seconds
+CACHE_PREFIX = 'symbol_mapping:'
 
 class SymbolLookupError(Exception):
     """Custom exception for symbol lookup errors"""
@@ -97,6 +104,77 @@ def track_error_rate(has_error: bool):
         )
     except Exception as e:
         logger.error(f"Error publishing error rate metric: {str(e)}")
+
+def get_cached_symbol(continuous_symbol: str) -> Optional[Dict[str, Any]]:
+    """
+    Retrieve cached symbol mapping from DynamoDB if it exists and is not expired.
+    
+    Args:
+        continuous_symbol (str): The continuous contract symbol (e.g., 'ES1!')
+        
+    Returns:
+        Optional[Dict]: Cached mapping data if found and valid, None otherwise
+    """
+    try:
+        cache_key = f"{CACHE_PREFIX}{continuous_symbol}"
+        response = table.get_item(
+            Key={'cache_key': cache_key},
+            ProjectionExpression='cache_data, ttl'
+        )
+        
+        if 'Item' not in response:
+            logger.info(f"No cache entry found for {continuous_symbol}")
+            return None
+            
+        item = response['Item']
+        current_time = int(datetime.now(timezone.utc).timestamp())
+        
+        # Check if cache has expired
+        if 'ttl' in item and item['ttl'] < current_time:
+            logger.info(f"Cache expired for {continuous_symbol}")
+            return None
+            
+        return json.loads(item['cache_data'])
+        
+    except Exception as e:
+        logger.error(f"Error retrieving from cache: {str(e)}")
+        return None
+
+def cache_symbol_mapping(continuous_symbol: str, actual_symbol: str) -> None:
+    """
+    Store symbol mapping in DynamoDB cache with a 12-hour TTL.
+    
+    Args:
+        continuous_symbol (str): The continuous contract symbol (e.g., 'ES1!')
+        actual_symbol (str): The actual contract symbol (e.g., 'ESH5')
+    """
+    try:
+        cache_key = f"{CACHE_PREFIX}{continuous_symbol}"
+        current_time = datetime.now(timezone.utc)
+        
+        # Prepare cache data
+        cache_data = {
+            'continuous_symbol': continuous_symbol,
+            'actual_symbol': actual_symbol,
+            'cached_at': current_time.isoformat()
+        }
+        
+        # Calculate TTL - 12 hours from now
+        ttl = int((current_time + timedelta(seconds=SYMBOL_CACHE_TTL)).timestamp())
+        
+        # Store in DynamoDB
+        table.put_item(
+            Item={
+                'cache_key': cache_key,
+                'cache_data': json.dumps(cache_data),
+                'ttl': ttl
+            }
+        )
+        
+        logger.info(f"Successfully cached mapping {continuous_symbol} -> {actual_symbol}")
+        
+    except Exception as e:
+        logger.error(f"Error caching symbol mapping: {str(e)}")
 
 
 def get_api_key() -> str:
@@ -381,21 +459,36 @@ def output_reversed_map(mapped_items, webhook_symbol):
     return actual_contract
 
 
-def get_historical_data_dict(lookup_symbol) -> Dict:
-    """Get historical data with comprehensive error handling and metrics"""
+def get_historical_data_dict(lookup_symbol) -> str:
+    """Get historical data with comprehensive error handling, metrics, and caching"""
     start_time = time.time()
+    
     try:
+        # Check cache first
+        cached_data = get_cached_symbol(lookup_symbol)
+        if cached_data is not None:
+            logger.info(f"Cache hit for symbol {lookup_symbol}")
+            publish_metric("symbol_cache_hit")
+            return cached_data['actual_symbol']
+        
+        publish_metric("symbol_cache_miss")
+        
+        # If not in cache or expired, perform the lookup
         top_instruments = rank_by_volume()
         symbols = match_symbol_to_rank(top_instruments)
         cleaned_list = clean_symbols(symbols)
         mapping = create_symbol_mapping(cleaned_list)
         final_symbol = output_reversed_map(mapping, lookup_symbol)
 
+        # Cache the result
+        cache_symbol_mapping(lookup_symbol, final_symbol)
+
         # Record success metrics
         duration = (time.time() - start_time) * 1000
         publish_metric("databento_request_duration", duration, "Milliseconds")
         publish_metric("databento_request_success")
         publish_metric("symbols_mapped", len(mapping))
+        
         return final_symbol
 
     except Exception as e:
