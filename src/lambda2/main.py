@@ -25,6 +25,7 @@ CACHE_TABLE_NAME = os.environ.get("CACHE_TABLE_NAME", "trading-prod-tradovate-ca
 CACHE_FAILURE_THRESHOLD = int(os.environ.get("CACHE_FAILURE_THRESHOLD", "3"))
 cache_failures = 0  # Track consecutive cache failures for circuit breaker
 
+
 class TradingCache:
     """
     Manages both Tradovate and symbol lookup data caching using DynamoDB.
@@ -241,6 +242,7 @@ class TradingCache:
             logger.error(f"Failed to invalidate cache: {str(e)}")
             return False
 
+
 class SymbolLookupError(Exception):
     """Custom exception for symbol lookup errors"""
 
@@ -248,8 +250,10 @@ class SymbolLookupError(Exception):
 class CacheError(Exception):
     """Custom exception for cache-related errors"""
 
+
 # Initialize cache manager with configured table name
 cache_manager = TradingCache(table_name=CACHE_TABLE_NAME)
+
 
 def publish_metric(name: str, value: float = 1, unit: str = "Count") -> None:
     """Publish a metric to CloudWatch"""
@@ -665,7 +669,9 @@ def get_historical_data_dict(lookup_symbol) -> str:
                 )
                 publish_metric("cache_write_success")
                 cache_failures = 0  # Reset failures on successful write
-                logger.info(f"Successfully cached mapping: {lookup_symbol} -> {final_symbol}")  # Added for clarity
+                logger.info(
+                    f"Successfully cached mapping: {lookup_symbol} -> {final_symbol}"
+                )  # Added for clarity
             except Exception as cache_error:
                 cache_failures += 1
                 logger.warning(f"Failed to cache result: {str(cache_error)}")
@@ -679,116 +685,122 @@ def get_historical_data_dict(lookup_symbol) -> str:
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
         raise SymbolLookupError(f"Failed to get historical data: {str(e)}") from e
 
+
+def process_all_symbols() -> Dict[str, str]:
+    """
+    Process all symbols in one batch, updating the cache for each mapping.
+
+    Returns:
+        Dict[str, str]: Dictionary of continuous symbols to actual symbols
+    """
+    try:
+        # Get all active instruments sorted by volume
+        logger.info("Fetching top instruments by volume")
+        top_instruments = rank_by_volume()
+
+        # Convert instrument IDs to symbols
+        logger.info("Resolving instrument IDs to symbols")
+        symbols_data = match_symbol_to_rank(top_instruments)
+
+        # Clean and prepare symbols
+        logger.info("Cleaning and preparing symbol list")
+        cleaned_symbols = clean_symbols(symbols_data)
+
+        # Create all mappings
+        logger.info("Creating symbol mappings")
+        mapping = create_symbol_mapping(cleaned_symbols)
+
+        # Reverse the mapping for cache storage (continuous -> actual)
+        reverse_mapping = {v: k for k, v in mapping.items()}
+
+        # Update cache for all symbols
+        logger.info(f"Updating cache for {len(reverse_mapping)} symbols")
+        cache_updates = 0
+        cache_errors = 0
+
+        for continuous_symbol, actual_symbol in reverse_mapping.items():
+            try:
+                success = cache_manager.cache_symbol_mapping(
+                    continuous_symbol, actual_symbol
+                )
+                if success:
+                    cache_updates += 1
+                else:
+                    cache_errors += 1
+            except Exception as e:
+                logger.error(f"Error caching {continuous_symbol}: {str(e)}")
+                cache_errors += 1
+
+        # Log cache update results
+        logger.info(
+            f"Cache update complete: {cache_updates} successful, "
+            f"{cache_errors} failed"
+        )
+
+        # Publish metrics
+        publish_metric("symbols_cached", cache_updates)
+        publish_metric("cache_errors", cache_errors)
+
+        return reverse_mapping
+
+    except Exception as e:
+        logger.error(f"Error in batch symbol processing: {str(e)}")
+        raise
+
+
 def lambda_handler(event, context) -> Dict:
-    """Lambda handler with comprehensive error handling and monitoring"""
+    """Lambda handler that supports both scheduled and manual invocations"""
     request_id = context.aws_request_id
     start_time = time.time()
     has_error = False
 
     try:
-        # Track concurrent executions at start
-        monitor_concurrent_executions()
-
         # Configure logging
         configure_logger(context)
         logger.info(f"Processing request {request_id}")
-        logger.debug(f"Event: {json.dumps(event, indent=2)}")
 
-        # Extract symbol from event with validation
-        market_data = event.get("market_data")
-        if not market_data:
-            raise SymbolLookupError("No market_data found in event")
+        # Determine if this is a scheduled or manual invocation
+        is_scheduled = event.get("source") == "aws.events"
 
-        lookup_symbol = market_data.get("symbol")
-        if not lookup_symbol:
-            raise SymbolLookupError("No symbol found in market_data")
+        if is_scheduled:
+            logger.info("Processing scheduled symbol mapping update")
+        else:
+            logger.info("Processing manual symbol mapping update")
 
-        # Get symbol mapping
-        final_symbol = get_historical_data_dict(lookup_symbol)
-
-        # Log symbol mapping
-        logger.info(f"Symbol mapping result: {final_symbol}")
+        # Get all symbol mappings
+        mappings = process_all_symbols()
 
         # Record success response with detailed timing
+        duration = (time.time() - start_time) * 1000
         response = {
             "statusCode": 200,
             "body": json.dumps(
                 {
                     "status": "success",
-                    "symbol": final_symbol,
+                    "symbols_processed": len(mappings),
+                    "execution_time_ms": duration,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "request_id": request_id,
-                    "cache_status": (
-                        "bypassed"
-                        if cache_failures >= CACHE_FAILURE_THRESHOLD
-                        else "active"
-                    ),
                 }
             ),
         }
 
-        # Log response
-        logger.info(f"Returning response: {json.dumps(response)}")
-
+        logger.info(
+            f"Successfully processed {len(mappings)} symbols in {duration:.2f}ms"
+        )
         return response
-
-    except SymbolLookupError as e:
-        has_error = True
-        logger.error(f"Symbol lookup error in request {request_id}: {str(e)}")
-        return {
-            "statusCode": 400,
-            "body": json.dumps(
-                {
-                    "status": "error",
-                    "error": str(e),
-                    "request_id": request_id,
-                    "cache_status": (
-                        "bypassed"
-                        if cache_failures >= CACHE_FAILURE_THRESHOLD
-                        else "active"
-                    ),
-                }
-            ),
-        }
 
     except Exception as e:
         has_error = True
-        logger.error(f"Unexpected error in request {request_id}: {str(e)}")
+        logger.error(f"Error processing symbols: {str(e)}")
         logger.error(f"Traceback: {''.join(traceback.format_tb(e.__traceback__))}")
         return {
             "statusCode": 500,
             "body": json.dumps(
-                {
-                    "status": "error",
-                    "error": "Internal server error",
-                    "request_id": request_id,
-                    "cache_status": (
-                        "bypassed"
-                        if cache_failures >= CACHE_FAILURE_THRESHOLD
-                        else "active"
-                    ),
-                }
+                {"status": "error", "error": str(e), "request_id": request_id}
             ),
         }
-
     finally:
-        # Track error rate and timing metrics
         track_error_rate(has_error)
         duration = (time.time() - start_time) * 1000
-        publish_metric("request_duration", duration, "Milliseconds")
-
-        # Enhanced request completion logging
-        log_message = (
-            f"Request {request_id} completed in {duration:.2f}ms "
-            f"(Cache status: {'bypassed' if cache_failures >= CACHE_FAILURE_THRESHOLD else 'active'})"
-        )
-
-        if duration > 5000:
-            logger.warning(f"{log_message} - Request took longer than 5 seconds")
-        else:
-            logger.info(log_message)
-
-        # Monitor resources
-        remaining_time = context.get_remaining_time_in_millis()
-        if remaining_time < 1000:
-            logger.warning(f"Low remaining execution time: {remaining_time}ms")
+        publish_metric("batch_process_duration", duration, "Milliseconds")

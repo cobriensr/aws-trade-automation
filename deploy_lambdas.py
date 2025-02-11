@@ -374,15 +374,15 @@ def create_zip_package(source_dir):
         for item in os.listdir(src):
             src_path = os.path.join(src, item)
             dst_path = os.path.join(dst, item)
-            
+
             # Skip common files/directories we don't want
-            if item in {'.git', '__pycache__', '*.pyc', '.env'}:
+            if item in {".git", "__pycache__", "*.pyc", ".env"}:
                 continue
-                
+
             if os.path.isdir(src_path):
                 # Recursively copy directories
                 shutil.copytree(src_path, dst_path)
-            elif item.endswith('.py'):
+            elif item.endswith(".py"):
                 # Copy Python files
                 shutil.copy2(src_path, dst_path)
 

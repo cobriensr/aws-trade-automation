@@ -6,7 +6,7 @@ import logging
 import time
 import traceback
 from datetime import datetime, timezone
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, Optional
 import boto3
 from botocore.exceptions import ClientError
 from trading.oanda import (
@@ -37,8 +37,68 @@ lambda_client = boto3.client("lambda")
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)  # Set to DEBUG for development, INFO for production
 
+
 class TradingWebhookError(Exception):
     """Custom exception for webhook processing errors"""
+
+
+class SymbolCache:
+    """
+    Handles reading symbol mappings from the DynamoDB cache.
+    This is a simplified version that only reads from the cache.
+    """
+
+    def __init__(self, table_name: str):
+        self.dynamodb = boto3.resource("dynamodb")
+        self.table = self.dynamodb.Table(table_name)
+        self.SYMBOL_CACHE_PREFIX = "symbol_mapping:"
+
+    def get_mapped_symbol(self, continuous_symbol: str) -> Optional[str]:
+        """
+        Look up the actual contract symbol from the cache.
+
+        Args:
+            continuous_symbol (str): The continuous contract symbol (e.g., 'ES1!')
+
+        Returns:
+            Optional[str]: The mapped actual contract symbol (e.g., 'ESH5') or None if not found
+        """
+        try:
+            # Construct the cache key
+            cache_key = f"{self.SYMBOL_CACHE_PREFIX}{continuous_symbol}"
+
+            # Try to get the item from DynamoDB
+            response = self.table.get_item(Key={"cache_key": cache_key})
+
+            # If no item found or expired, return None
+            if "Item" not in response:
+                logger.info(f"No cache entry found for {continuous_symbol}")
+                return None
+
+            item = response["Item"]
+            current_time = int(datetime.now(timezone.utc).timestamp())
+
+            # Check if the cached item has expired
+            if "ttl" in item and item["ttl"] < current_time:
+                logger.info(f"Cache expired for {continuous_symbol}")
+                return None
+
+            # Parse and return the cached symbol
+            if "cache_data" in item:
+                cache_data = json.loads(item["cache_data"])
+                return cache_data.get("actual_symbol")
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error retrieving from cache: {str(e)}")
+            return None
+
+
+# Initialize the cache reader with the table name
+symbol_cache = SymbolCache(
+    os.environ.get("CACHE_TABLE_NAME", "trading-prod-tradovate-cache")
+)
 
 
 def monitor_concurrent_executions(context):
@@ -339,32 +399,29 @@ def handle_futures_trade(
 
         logger.info(f"Authenticated successfully, token expires: {expiration_time}")
 
-        # Get symbol mapping
-        lambda2_function_name = os.environ["LAMBDA2_FUNCTION_NAME"]
-        mapping_response = invoke_lambda_function(
-            lambda2_function_name, payload={"market_data": {"symbol": symbol}}
-        )
-
+        # Replace the Lambda 2 invocation with this:
         try:
-            response_body = json.loads(mapping_response.get("body", "{}"))
-            mapped_symbol = response_body.get("symbol")
+            # Look up the symbol in the cache
+            mapped_symbol = symbol_cache.get_mapped_symbol(symbol)
 
             if not mapped_symbol:
-                logger.error(f"Symbol mapping error - Input symbol: {symbol}")
-                logger.error(f"Mapping response: {json.dumps(response_body, indent=2)}")
-                raise TradingWebhookError(f"No mapping found for symbol: {symbol}")
-
-            logger.info(f"Successfully mapped symbol {symbol} to {mapped_symbol}")
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse symbol mapping response: {str(e)}")
-            logger.error(f"Raw mapping response: {mapping_response}")
-            raise TradingWebhookError("Invalid symbol mapping response format") from e
-        except KeyError as e:
-            logger.error(f"Missing required field in symbol mapping response: {str(e)}")
+                logger.error(f"No cached mapping found for symbol: {symbol}")
+                logger.error("Symbol lookup failed - cache miss")
+                raise TradingWebhookError(
+                    f"No symbol mapping found in cache for: {symbol}. "
+                    "Please ensure the symbol mapping service has run recently."
+                )
+            logger.info(
+                f"Successfully found cached mapping: {symbol} -> {mapped_symbol}"
+            )
+        except ClientError as e:
+            logger.error(f"DynamoDB error looking up symbol: {str(e)}")
             raise TradingWebhookError(
-                "Invalid symbol mapping response structure"
+                f"Database error during symbol lookup: {str(e)}"
             ) from e
+        except Exception as e:
+            logger.error(f"Unexpected error during symbol lookup: {str(e)}")
+            raise TradingWebhookError(f"Symbol lookup failed: {str(e)}") from e
 
         # Get default account ID first
         account_id = get_accounts(

@@ -7,8 +7,8 @@ resource "aws_lambda_function" "main" {
   kms_key_arn   = aws_kms_key.lambda_env.arn
   handler       = "main.lambda_handler"
   runtime       = "python3.12"
-  timeout       = 30
-  memory_size   = 512
+  timeout       = 15
+  memory_size   = 1024
   publish       = true
   layers = [
     "arn:aws:lambda:us-east-1:580247275435:layer:LambdaInsightsExtension:53"
@@ -29,6 +29,8 @@ resource "aws_lambda_function" "main" {
       TRADOVATE_CID                     = "${data.aws_ssm_parameter.tradovate_cid.value}"
       TRADOVATE_SECRET                  = "${data.aws_ssm_parameter.tradovate_secret.value}"
       LAMBDA2_FUNCTION_NAME             = "${aws_lambda_function.symbol_lookup.function_name}"
+      CACHE_TABLE_NAME                  = aws_dynamodb_table.tradovate_cache.name
+      LAMBDA2_FUNCTION_NAME             = "${aws_lambda_function.symbol_lookup.function_name}"
     }
   }
 
@@ -44,29 +46,21 @@ resource "aws_lambda_function" "main" {
   tags = local.common_tags
 }
 
-# Lambda 2 (Symbol lookup)
+# Symbol lookup Lambda (now a batch processor)
 resource "aws_lambda_function" "symbol_lookup" {
   function_name = "${local.name_prefix}-symbol-lookup"
   kms_key_arn   = aws_kms_key.lambda_env.arn
   role          = aws_iam_role.lambda2_role.arn
-  timeout       = 30
-  memory_size   = 512
-  publish       = true
+  timeout       = 300
+  memory_size   = 1024
   package_type  = "Image"
-
-  # Use the current image URI and let the Python script update it
-  image_uri = "565625954376.dkr.ecr.us-east-1.amazonaws.com/trading-prod-symbol-lookup:latest"
-
+  image_uri     = "565625954376.dkr.ecr.us-east-1.amazonaws.com/trading-prod-symbol-lookup:latest"
 
   environment {
     variables = {
-      AWS_LAMBDA_FUNCTION_TIMEOUT       = "30"
-      AWS_LAMBDA_INITIALIZATION_TYPE    = "provisioned-concurrency"
-      AWS_LAMBDA_INITIALIZATION_TIMEOUT = "25"
-      FUNCTION_NAME                     = "${local.name_prefix}-symbol-lookup"
-      DATABENTO_API_KEY                 = data.aws_ssm_parameter.databento_key.value
-      CACHE_TABLE_NAME                  = aws_dynamodb_table.tradovate_cache.name
-      CACHE_FAILURE_THRESHOLD           = "3"
+      FUNCTION_NAME     = "${local.name_prefix}-symbol-lookup"
+      DATABENTO_API_KEY = data.aws_ssm_parameter.databento_key.value
+      CACHE_TABLE_NAME  = aws_dynamodb_table.tradovate_cache.name
     }
   }
 
@@ -75,17 +69,34 @@ resource "aws_lambda_function" "symbol_lookup" {
     security_group_ids = [aws_security_group.lambda.id, "sg-0f10a7b30f99f2156"]
   }
 
-  tracing_config {
-    mode = "Active"
-  }
-
-  # Only ignore image_uri since it's managed by the Python script
   lifecycle {
-    ignore_changes = [image_uri]
+    ignore_changes = [
+      image_uri,
+    ]
   }
-
 
   tags = local.common_tags
+}
+
+# EventBridge rule to trigger the lookup every 12 hours
+resource "aws_cloudwatch_event_rule" "symbol_lookup_schedule" {
+  name                = "${local.name_prefix}-symbol-lookup-schedule"
+  description         = "Triggers symbol lookup Lambda every 12 hours"
+  schedule_expression = "rate(12 hours)"
+}
+
+resource "aws_cloudwatch_event_target" "symbol_lookup_lambda" {
+  rule      = aws_cloudwatch_event_rule.symbol_lookup_schedule.name
+  target_id = "SymbolLookupLambda"
+  arn       = aws_lambda_function.symbol_lookup.arn
+}
+
+resource "aws_lambda_permission" "allow_eventbridge" {
+  statement_id  = "AllowEventBridgeInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.symbol_lookup.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.symbol_lookup_schedule.arn
 }
 
 # Lambda 3 (Coinbase)
@@ -98,7 +109,7 @@ resource "aws_lambda_function" "coinbase" {
   handler       = "main.lambda_handler"
   runtime       = "python3.12"
   timeout       = 30
-  memory_size   = 512
+  memory_size   = 128
   publish       = true
   layers = [
     "arn:aws:lambda:us-east-1:580247275435:layer:LambdaInsightsExtension:53",
