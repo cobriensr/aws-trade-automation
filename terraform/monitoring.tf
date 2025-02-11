@@ -255,46 +255,6 @@ resource "aws_cloudwatch_metric_alarm" "lambda2_throttles" {
   tags = local.common_tags
 }
 
-# Lambda 2 High Latency Alert
-resource "aws_cloudwatch_metric_alarm" "lambda2_duration" {
-  alarm_name          = "${local.name_prefix}-lambda2-high-latency"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "Duration"
-  namespace           = "AWS/Lambda"
-  period              = "60"
-  statistic           = "Average"
-  threshold           = "5000" # 5 seconds
-  alarm_description   = "Lambda 2 (Symbol Lookup) taking too long to execute"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-
-  dimensions = {
-    FunctionName = aws_lambda_function.symbol_lookup.function_name
-  }
-
-  tags = local.common_tags
-}
-
-# Lambda 2 Memory Usage Alert
-resource "aws_cloudwatch_metric_alarm" "lambda2_memory" {
-  alarm_name          = "${local.name_prefix}-lambda2-memory-usage"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "MaxMemoryUsed"
-  namespace           = "AWS/Lambda"
-  period              = "60"
-  statistic           = "Maximum"
-  threshold           = "819"
-  alarm_description   = "Lambda 2 (Symbol Lookup) approaching memory limit"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-
-  dimensions = {
-    FunctionName = aws_lambda_function.symbol_lookup.function_name
-  }
-
-  tags = local.common_tags
-}
-
 # Lambda 2 Invocation Error Rate
 resource "aws_cloudwatch_metric_alarm" "lambda2_error_rate" {
   alarm_name          = "${local.name_prefix}-lambda2-error-rate"
@@ -306,26 +266,6 @@ resource "aws_cloudwatch_metric_alarm" "lambda2_error_rate" {
   statistic           = "Average"
   threshold           = "5" # 5% error rate
   alarm_description   = "Lambda 2 (Symbol Lookup) error rate exceeds 5%"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-
-  dimensions = {
-    FunctionName = aws_lambda_function.symbol_lookup.function_name
-  }
-
-  tags = local.common_tags
-}
-
-# Lambda 2 Concurrent Executions
-resource "aws_cloudwatch_metric_alarm" "lambda2_concurrent_executions" {
-  alarm_name          = "${local.name_prefix}-lambda2-concurrent-executions"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "ConcurrentExecutions"
-  namespace           = "AWS/Lambda"
-  period              = "60"
-  statistic           = "Maximum"
-  threshold           = "50"
-  alarm_description   = "Lambda 2 (Symbol Lookup) concurrent executions exceeding threshold"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
@@ -519,26 +459,6 @@ resource "aws_cloudwatch_metric_alarm" "lambda_high_concurrency" {
 
   dimensions = {
     FunctionName = aws_lambda_function.main.function_name
-  }
-
-  tags = local.common_tags
-}
-
-# Symbol lookup function high concurrency alarm
-resource "aws_cloudwatch_metric_alarm" "lambda2_high_concurrency" {
-  alarm_name          = "${local.name_prefix}-lambda2-high-concurrency"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "1"
-  metric_name         = "ConcurrentExecutions"
-  namespace           = "AWS/Lambda"
-  period              = "60"
-  statistic           = "Maximum"
-  threshold           = "2" # Alert at 2 concurrent executions
-  alarm_description   = "Alert when symbol lookup function concurrency is high"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-
-  dimensions = {
-    FunctionName = aws_lambda_function.symbol_lookup.function_name
   }
 
   tags = local.common_tags
