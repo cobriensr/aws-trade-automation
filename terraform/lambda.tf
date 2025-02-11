@@ -28,9 +28,7 @@ resource "aws_lambda_function" "main" {
       TRADOVATE_DEVICE_ID               = "${data.aws_ssm_parameter.tradovate_device_id.value}"
       TRADOVATE_CID                     = "${data.aws_ssm_parameter.tradovate_cid.value}"
       TRADOVATE_SECRET                  = "${data.aws_ssm_parameter.tradovate_secret.value}"
-      LAMBDA2_FUNCTION_NAME             = "${aws_lambda_function.symbol_lookup.function_name}"
       CACHE_TABLE_NAME                  = aws_dynamodb_table.tradovate_cache.name
-      LAMBDA2_FUNCTION_NAME             = "${aws_lambda_function.symbol_lookup.function_name}"
     }
   }
 
