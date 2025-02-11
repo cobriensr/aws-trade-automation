@@ -182,21 +182,6 @@ resource "aws_cloudwatch_log_metric_filter" "lambda_health" {
   }
 }
 
-# Add baseline metric alarm
-resource "aws_cloudwatch_metric_alarm" "lambda_baseline" {
-  alarm_name          = "${local.name_prefix}-lambda-baseline"
-  comparison_operator = "LessThanThreshold"
-  evaluation_periods  = "5"
-  metric_name         = "InvocationCount"
-  namespace           = "Trading/Custom"
-  period              = "300"
-  statistic           = "Sum"
-  threshold           = "1"
-  treat_missing_data  = "breaching"
-  alarm_description   = "Monitor for complete absence of Lambda invocations"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-}
-
 resource "aws_cloudwatch_composite_alarm" "lambda_health" {
   alarm_name = "${local.name_prefix}-lambda-health"
   alarm_rule = "ALARM(${aws_cloudwatch_metric_alarm.lambda_errors.alarm_name}) OR ALARM(${aws_cloudwatch_metric_alarm.lambda_duration.alarm_name}) OR ALARM(${aws_cloudwatch_metric_alarm.lambda_throttles.alarm_name})"

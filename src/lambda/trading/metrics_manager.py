@@ -29,55 +29,6 @@ class TradovateMetricsManager:
         """Set default dimensions for all metrics."""
         self.default_dimensions = dimensions
 
-    def publish_metric_with_zero(
-        self,
-        metric_name: str,
-        actual_value: float = 1,
-        unit: str = "Count",
-        dimensions: list = None,
-    ) -> None:
-        """
-        Publish a metric with both actual value and zero values to prevent insufficient data.
-        This helps maintain continuous data points even during periods of inactivity.
-        """
-        try:
-            now = datetime.now(timezone.utc)
-
-            # Combine default and metric-specific dimensions
-            all_dimensions = self.default_dimensions.copy()
-            if dimensions:
-                all_dimensions.extend(dimensions)
-
-            # Prepare metric data with both actual value and zero
-            metric_data = [
-                {
-                    "MetricName": metric_name,
-                    "Value": actual_value,
-                    "Unit": unit,
-                    "Timestamp": now,
-                    "Dimensions": all_dimensions,
-                },
-                {
-                    "MetricName": f"{metric_name}_baseline",
-                    "Value": 0,
-                    "Unit": unit,
-                    "Timestamp": now,
-                    "Dimensions": all_dimensions,
-                },
-            ]
-
-            # Publish metrics
-            self.cloudwatch.put_metric_data(
-                Namespace=self.namespace, MetricData=metric_data
-            )
-
-            logger.debug(
-                f"Successfully published metric {metric_name} with value {actual_value}"
-            )
-
-        except ClientError as e:
-            logger.error(f"Failed to publish metric {metric_name}: {str(e)}")
-
     def publish_operation_metrics(
         self,
         operation_name: str,

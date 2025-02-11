@@ -556,14 +556,6 @@ def lambda_handler(event, context) -> Dict:
             f"Concurrent execution context: {context.function_name}-{context.aws_request_id}"
         )
 
-        # Monitor concurrent executions with enhanced metrics
-        metrics_manager.publish_metric_with_zero(
-            "ConcurrentExecutions",
-            1,
-            "Count",
-            [{"Name": "ExecutionType", "Value": "Active"}],
-        )
-
         # Get credentials
         creds = get_credentials()
 
@@ -604,16 +596,6 @@ def lambda_handler(event, context) -> Dict:
             symbol = webhook_data["market_data"]["symbol"]
             exchange = webhook_data["market_data"]["exchange"]
             timestamp = webhook_data["market_data"].get("timestamp")
-
-            # Enhanced webhook metrics dimensions
-            webhook_dimensions = [
-                {"Name": "Exchange", "Value": exchange},
-                {"Name": "Symbol", "Value": symbol},
-                {"Name": "Direction", "Value": signal_direction},
-            ]
-            metrics_manager.publish_metric_with_zero(
-                "webhook_received", 1, "Count", webhook_dimensions
-            )
 
             # Log request details
             logger.info("==================== BEGIN PROCESSING ====================")
