@@ -564,17 +564,6 @@ def lambda_handler(event, context) -> Dict:
             [{"Name": "ExecutionType", "Value": "Active"}],
         )
 
-        # Validate required environment variables
-        required_env_vars = ["LAMBDA2_FUNCTION_NAME"]
-        missing_vars = [var for var in required_env_vars if not os.getenv(var)]
-        if missing_vars:
-            raise ValueError(
-                f"Missing required environment variables: {', '.join(missing_vars)}"
-            )
-
-        logger.info(f"Processing request {request_id}")
-        logger.debug(f"Event: {json.dumps(event, indent=2)}")
-
         # Get credentials
         creds = get_credentials()
 
